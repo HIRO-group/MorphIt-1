@@ -1,18 +1,24 @@
 # MorphIt-1
 
-Activate your virtualenv
+Create and activate your virtual environment
 
 ```
-pip install -r requirements.txt
+uv venv venv-morphit --python 3.10
+source venv-morphit/bin/activate
+```
+
+```
+uv pip install -r requirements.txt
 ```
 
 
 Compile an efficient helper module used to check whether a point lies inside a mesh:
 ```
 cd src
-pip install cython
 python setup.py build_ext --inplace
 ```
+
+This should generate a file such as,
 
 
 ### System
