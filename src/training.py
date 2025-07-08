@@ -88,7 +88,6 @@ class MorphItTrainer:
             Convergence tracker with training history
         """
         print("\n=== Starting MorphIt Training ===")
-        self.training_start_time = time.time()
 
         # Setup logging and rendering
         self.setup_logging()
@@ -97,6 +96,7 @@ class MorphItTrainer:
         # Get loss weights
         loss_weights = self.losses.get_loss_weights_from_config(self.config.training)
 
+        self.training_start_time = time.time()
         # Training loop
         for iteration in range(self.config.training.iterations):
             self.current_iteration = iteration
@@ -123,7 +123,9 @@ class MorphItTrainer:
                 self._perform_density_control(iteration)
 
             # Log sphere evolution
-            if iteration % 1 == 0:  # Log every iteration
+            if (
+                self.config.training.logging_enabled and iteration % 1 == 0
+            ):  # Log every iteration
                 self.evolution_logger.log_spheres(self.model, iteration, "training")
 
         # Cleanup and finalize
@@ -166,9 +168,15 @@ class MorphItTrainer:
         grad_info = self._get_gradient_info()
 
         # Clip gradients
+        # torch.nn.utils.clip_grad_norm_(
+        #     self.model.parameters(), self.config.training.grad_clip_norm
+        # )
         torch.nn.utils.clip_grad_norm_(
-            self.model.parameters(), self.config.training.grad_clip_norm
+            self.model._centers, self.config.training.grad_clip_norm
         )
+        torch.nn.utils.clip_grad_norm_(
+            self.model._radii, self.config.training.grad_clip_norm * 0.5
+        )  # Smaller for radii, TODO(nn) why?
 
         # Update parameters
         self.optimizer.step()
@@ -307,15 +315,9 @@ class MorphItTrainer:
 
     def _print_training_summary(self):
         """Print training summary."""
-        total_time = time.time() - self.training_start_time
-
         print(f"\n=== Training Complete ===")
         print(f"Density control operations: {self.density_control_count}")
         print(f"Final sphere count: {self.model.num_spheres}")
-        print(f"Total training time: {total_time:.4f}s")
-        print(
-            f"Average time per iteration: {total_time/(self.current_iteration+1):.4f}s"
-        )
         print("=" * 26)
 
 

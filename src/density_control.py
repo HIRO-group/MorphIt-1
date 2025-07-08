@@ -89,8 +89,6 @@ class DensityController:
             print("\n--- Density Control Trigger ---")
             print(f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
             print(f"Small gradients: {grads_small}")
-            print(f"Recent position grads: {recent_pos_grads}")
-            print(f"Recent radius grads: {recent_rad_grads}")
 
         return should_densify
 

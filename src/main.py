@@ -15,8 +15,6 @@ def main():
     """Main function to run MorphIt sphere packing."""
     print("=== MorphIt Sphere Packing System ===")
 
-    start_time = time.time()
-
     # Load configuration
     config = get_config("MorphIt-B")  # Use MorphIt-B loss configuration
 
@@ -26,7 +24,9 @@ def main():
         "model.mesh_path": "../mesh_models/fr3/collision/link0.obj",
         "training.iterations": 500,
         "training.verbose_frequency": 10,
+        "training.logging_enabled": False,
         "training.density_control_min_interval": 50,
+        "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,
         "visualization.video_filename": "morphit_evolution.mp4",
@@ -41,6 +41,7 @@ def main():
     # Initialize visualization
     print("Setting up visualization...")
     model.pv_init(
+        enabled=config.visualization.enabled,
         off_screen=config.visualization.off_screen,
         save_video=config.visualization.save_video,
         filename=config.visualization.video_filename,
@@ -87,21 +88,6 @@ def main():
     # Plot training metrics
     print("Plotting training metrics...")
     tracker.plot_training_metrics()
-
-    # Print convergence analysis
-    convergence_analysis = tracker.analyze_convergence_windows([20, 50, 100])
-    print("\n=== Convergence Analysis ===")
-    for window_size, windows in convergence_analysis.items():
-        if windows:
-            last_window = windows[-1]
-            print(f"Window size {window_size}:")
-            print(f"  Loss change: {last_window['loss_change']:.6f}")
-            print(f"  Position gradients small: {last_window['position_grad_small']}")
-            print(f"  Radius gradients small: {last_window['radius_grad_small']}")
-
-    # Print total execution time
-    total_time = time.time() - start_time
-    print(f"\nTotal execution time: {total_time:.4f} seconds")
 
     print("\n=== MorphIt Complete ===")
 

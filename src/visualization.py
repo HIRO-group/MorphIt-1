@@ -6,6 +6,7 @@ import numpy as np
 import pyvista as pv
 import time
 from typing import Optional, Tuple
+import torch
 
 
 def visualize_packing(
@@ -206,8 +207,16 @@ class MorphItVisualizer:
         self.plotter = None
         self.sphere_list = []
 
+    def __del__(self):
+        if hasattr(self, "plotter") and self.plotter is not None:
+            try:
+                self.plotter.close()
+            except:
+                pass  # Ignore cleanup errors
+
     def pv_init(
         self,
+        enabled: bool = False,
         off_screen: bool = False,
         save_video: bool = False,
         filename: str = "morphit.mp4",
@@ -220,6 +229,10 @@ class MorphItVisualizer:
             save_video: Whether to save video
             filename: Video filename
         """
+        if enabled == False:
+            print(f"Disabled pyvista visualization.")
+            return
+
         self.plotter = pv.Plotter(off_screen=off_screen)
         self.off_screen = off_screen
         self.save_video = save_video

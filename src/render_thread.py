@@ -57,18 +57,19 @@ class RenderThread:
                 # Get next item from queue with timeout to allow checking running flag
                 iteration = self.queue.get(timeout=0.5)
 
-                # Perform the actual rendering
-                start_time = time.time()
-                self.model.pv_render()
-                render_time = time.time() - start_time
+                with torch.no_grad():
+                    # Perform the actual rendering
+                    start_time = time.time()
+                    self.model.pv_render()
+                    render_time = time.time() - start_time
 
-                # Optional: print rendering stats occasionally
-                if iteration % (self.render_interval * 20) == 0:
-                    print(
-                        f"[Render Thread] Frame at iteration {iteration}, render time: {render_time:.4f}s"
-                    )
+                    # Optional: print rendering stats occasionally
+                    if iteration % (self.render_interval * 20) == 0:
+                        print(
+                            f"[Render Thread] Frame at iteration {iteration}, render time: {render_time:.4f}s"
+                        )
 
-                self.queue.task_done()
+                    self.queue.task_done()
 
             except queue.Empty:
                 # Queue is empty, just continue the loop

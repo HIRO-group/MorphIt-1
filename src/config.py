@@ -22,11 +22,11 @@ class ModelConfig:
     num_surface_samples: int = 1000  # Points on mesh surface for surface loss
 
     # Density control parameters
-    radius_threshold: float = 0.02  # Threshold for pruning small spheres
+    radius_threshold: float = 0.005  # Threshold for pruning small spheres
     coverage_threshold: float = (
         0.01  # Threshold for adding spheres to poor coverage areas
     )
-    max_spheres: int = 50  # Maximum number of spheres allowed
+    max_spheres: int = num_spheres  # Maximum number of spheres allowed
 
 
 @dataclass
@@ -35,6 +35,9 @@ class TrainingConfig:
 
     iterations: int = 50
     verbose_frequency: int = 50
+
+    # Looging the packing evolution
+    logging_enabled: bool = False
 
     # Optimizer parameters
     center_lr: float = 0.005
@@ -64,6 +67,7 @@ class TrainingConfig:
 class VisualizationConfig:
     """Visualization configuration parameters."""
 
+    enabled: bool = False
     off_screen: bool = True
     save_video: bool = True
     video_filename: str = "sphere_filling.mp4"

@@ -50,7 +50,6 @@ class MorphIt(nn.Module):
 
     def _initialize_system(self):
         """Initialize the MorphIt system components."""
-        start_time = time.time()
 
         # Set device
         self.device = torch.device(self.config.model.device)
@@ -72,12 +71,8 @@ class MorphIt(nn.Module):
         self.evolution_logger = None
         self.pl = None  # PyVista plotter placeholder
 
-        print(f"System initialization time: {time.time() - start_time:.4f} seconds")
-
     def _initialize_spheres(self):
         """Initialize sphere centers and radii with optimal placement."""
-        start_time = time.time()
-
         # Sample centers inside the mesh
         centers = self._sample_centers_inside_mesh(self.num_spheres)
 
@@ -90,8 +85,6 @@ class MorphIt(nn.Module):
 
         # Print statistics
         self._print_initialization_stats(radii)
-
-        print(f"Sphere initialization time: {time.time() - start_time:.4f} seconds")
 
     def _sample_centers_inside_mesh(self, num_spheres: int) -> torch.Tensor:
         """Sample sphere centers inside the mesh volume."""
@@ -154,7 +147,8 @@ class MorphIt(nn.Module):
             print(f"  - Max: {max_radius:.4f}")
 
             # Verify volume preservation
-            total_volume = (4 / 3 * np.pi * (radii**3)).sum().item()
+            SPHERE_VOLUME_CONSTANT = 4 * np.pi / 3
+            total_volume = (SPHERE_VOLUME_CONSTANT * (radii**3)).sum().item()
             print(f"  - Target volume: {self.mesh_volume:.4f}")
             print(f"  - Initial volume: {total_volume:.4f}")
 
@@ -168,7 +162,6 @@ class MorphIt(nn.Module):
 
     def _initialize_inside_samples(self):
         """Pre-compute sample points inside mesh for coverage computation."""
-        start_time = time.time()
         num_points = self.config.model.num_inside_samples
 
         points = np.zeros((0, 3))
@@ -196,13 +189,9 @@ class MorphIt(nn.Module):
         self.inside_samples = torch.tensor(
             points, dtype=torch.float32, device=self.device
         )
-        print(
-            f"Inside samples initialization time: {time.time() - start_time:.4f} seconds"
-        )
 
     def _initialize_surface_samples(self):
         """Pre-sample points on mesh surface for surface loss computation."""
-        start_time = time.time()
         num_samples = self.config.model.num_surface_samples
 
         # Sample points on mesh surface
@@ -221,10 +210,6 @@ class MorphIt(nn.Module):
             self.query_mesh.face_normals, dtype=torch.float32, device=self.device
         )
         self.surface_normals = self.face_normals[self.surface_face_ids]
-
-        print(
-            f"Surface samples initialization time: {time.time() - start_time:.4f} seconds"
-        )
 
     @property
     def centers(self) -> torch.Tensor:
@@ -327,6 +312,7 @@ class MorphIt(nn.Module):
     # Visualization methods
     def pv_init(
         self,
+        enabled: bool = False,
         off_screen: bool = False,
         save_video: bool = False,
         filename: str = "morphit.mp4",
@@ -339,10 +325,13 @@ class MorphIt(nn.Module):
             save_video: Whether to save video
             filename: Video filename
         """
+        if enabled == False:
+            print(f"Disabled pyvista visualization.")
+            return
         from visualization import MorphItVisualizer
 
         self.visualizer = MorphItVisualizer(self, self.config.visualization)
-        self.visualizer.pv_init(off_screen, save_video, filename)
+        self.visualizer.pv_init(enabled, off_screen, save_video, filename)
 
         # For backward compatibility
         self.pl = self.visualizer.plotter
