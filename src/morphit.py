@@ -165,7 +165,7 @@ class MorphIt(nn.Module):
         num_points = self.config.model.num_inside_samples
 
         points = np.zeros((0, 3))
-        batch_size = min(num_points * 2, 100000)
+        batch_size = min(num_points * 2, 10000)
         mesh_bounds = self.query_mesh.bounds
 
         while len(points) < num_points:
@@ -293,21 +293,6 @@ class MorphIt(nn.Module):
                     "max": centers_np.max(axis=0).tolist(),
                 },
             }
-
-    def print_statistics(self):
-        """Print current sphere statistics."""
-        stats = self.get_sphere_statistics()
-        print("\n=== MorphIt Statistics ===")
-        print(f"Number of spheres: {stats['num_spheres']}")
-        print(
-            f"Radius - Min: {stats['radius_stats']['min']:.4f}, "
-            f"Max: {stats['radius_stats']['max']:.4f}, "
-            f"Mean: {stats['radius_stats']['mean']:.4f}"
-        )
-        print(f"Total sphere volume: {stats['total_sphere_volume']:.4f}")
-        print(f"Mesh volume: {stats['mesh_volume']:.4f}")
-        print(f"Volume ratio: {stats['volume_ratio']:.4f}")
-        print("=" * 27)
 
     # Visualization methods
     def pv_init(

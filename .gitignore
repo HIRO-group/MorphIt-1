@@ -1,5 +1,5 @@
 # MorphIt specific
-results/*
+results*
 *.mp4
 
 # Byte-compiled / optimized / DLL files

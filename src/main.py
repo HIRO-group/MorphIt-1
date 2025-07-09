@@ -2,9 +2,6 @@
 Main entry point for MorphIt sphere packing system.
 """
 
-import time
-from pathlib import Path
-
 from config import get_config, update_config_from_dict
 from morphit import MorphIt
 from training import train_morphit
@@ -22,10 +19,10 @@ def main():
     config_updates = {
         "model.num_spheres": 15,
         "model.mesh_path": "../mesh_models/fr3/collision/link0.obj",
-        "training.iterations": 500,
+        "training.iterations": 50,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 50,
+        "training.density_control_min_interval": 25,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,
@@ -47,10 +44,6 @@ def main():
         filename=config.visualization.video_filename,
     )
 
-    # Show initial state
-    print("Initial state:")
-    model.print_statistics()
-
     # Visualize initial packing
     print("Visualizing initial packing...")
     visualize_packing(
@@ -64,17 +57,6 @@ def main():
     # Train the model
     print("\nStarting training...")
     tracker = train_morphit(model)
-
-    # Final pruning
-    print("\nFinal pruning...")
-    from density_control import DensityController
-
-    density_controller = DensityController(model, config)
-    density_controller.prune_spheres()
-
-    # Show final state
-    print("\nFinal state:")
-    model.print_statistics()
 
     # Save results
     print("\nSaving results...")

@@ -168,15 +168,12 @@ class MorphItTrainer:
         grad_info = self._get_gradient_info()
 
         # Clip gradients
-        # torch.nn.utils.clip_grad_norm_(
-        #     self.model.parameters(), self.config.training.grad_clip_norm
-        # )
         torch.nn.utils.clip_grad_norm_(
             self.model._centers, self.config.training.grad_clip_norm
         )
         torch.nn.utils.clip_grad_norm_(
             self.model._radii, self.config.training.grad_clip_norm * 0.5
-        )  # Smaller for radii, TODO(nn) why?
+        )  # Smaller for radii
 
         # Update parameters
         self.optimizer.step()
@@ -304,7 +301,7 @@ class MorphItTrainer:
             self.model.stop_render_thread()
 
         # Final pruning
-        # self.density_controller.prune_spheres()
+        self.density_controller.prune_spheres()
 
         # Log final state
         self.evolution_logger.log_spheres(self.model, self.current_iteration, "final")
