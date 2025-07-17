@@ -1,5 +1,5 @@
 """
-Main entry point for MorphIt sphere packing system.
+Example script to run MorphIt
 """
 
 from config import get_config, update_config_from_dict
@@ -9,13 +9,13 @@ from visualization import visualize_packing
 
 
 def main():
-    """Main function to run MorphIt sphere packing."""
-    print("=== MorphIt Sphere Packing System ===")
+    print("=== Hello, I'm MorphIt ===")
 
-    # Load configuration
-    config = get_config("MorphIt-B")  # Use MorphIt-B loss configuration
+    # Load a pre-set configuration of weights
+    # Choose between MorphIt-B, MorphIt-S, and MorphIt-V
+    config = get_config("MorphIt-B")
 
-    # Update configuration for this run
+    # Here you can configure MorphIt based on your requirements
     config_updates = {
         "model.num_spheres": 15,
         "model.mesh_path": "../mesh_models/fr3/collision/link0.obj",
@@ -31,11 +31,9 @@ def main():
 
     config = update_config_from_dict(config, config_updates)
 
-    # Create model
     print("Initializing MorphIt model...")
     model = MorphIt(config)
 
-    # Initialize visualization
     print("Setting up visualization...")
     model.pv_init(
         enabled=config.visualization.enabled,
@@ -44,7 +42,6 @@ def main():
         filename=config.visualization.video_filename,
     )
 
-    # Visualize initial packing
     print("Visualizing initial packing...")
     visualize_packing(
         model,
@@ -54,20 +51,16 @@ def main():
         sphere_opacity=config.visualization.sphere_opacity,
     )
 
-    # Train the model
     print("\nStarting training...")
     tracker = train_morphit(model)
 
-    # Save results
     print("\nSaving results...")
     model.save_results()
     tracker.save()
 
-    # Visualize final packing
     print("Visualizing final packing...")
     visualize_packing(model)
 
-    # Plot training metrics
     print("Plotting training metrics...")
     tracker.plot_training_metrics()
 
@@ -75,5 +68,4 @@ def main():
 
 
 if __name__ == "__main__":
-    # Run the main experiment
     main()

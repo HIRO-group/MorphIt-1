@@ -7,11 +7,11 @@ MorphIt is a novel algorithm for approximating robot morphology using spherical 
 
 ## Key Features
 
-- **Automatic spherical approximation** of any robot mesh with gradient-based optimization
-- **Flexible configuration** with three variants (MorphIt-V, MorphIt-S, MorphIt-B) for different task requirements
+- **Automatic spherical approximation** of any mesh with gradient-based optimization
+- **Flexible configuration** for different task requirements
 - **Fast computation** - up to 2 orders of magnitude faster than baseline methods
-- **Superior accuracy** - better mesh approximation with fewer spheres
-- **Seamless integration** - generates URDF files compatible with popular robotics simulators
+- **Physical fidelity** - better mesh approximation with fewer spheres
+- **Easy integration** - generates URDF files compatible with popular robotics simulators
 
 
 ## Quick Start
@@ -26,6 +26,7 @@ uv pip install -r requirements.txt
 ### Compile Helper Module
 Compile an efficient helper module used to check whether a point lies inside a mesh:
 ```bash
+sudo apt-get install python3.10-dev
 cd src
 python setup.py build_ext --inplace
 ```
@@ -79,6 +80,16 @@ cd src
 python visualize_packing.py results/output/morphit_results.json
 ```
 
+### Convert to URDF and Visualize the Panda Robot in Drake
+Create the sheres, populate the URDF file, then use a simulator like Drake to use your new robot mophology.
+```bash
+cd src
+python morphit_panda.py
+cd scripts
+python create_panda_urdf.py
+python run_spherical_panda_drake_example.py
+```
+
 ## File Overview
 
 ### Core System
@@ -124,7 +135,7 @@ python visualize_packing.py results/output/morphit_results.json
 
 - Ubuntu 22.04.5 LTS (recommended)
 - Python 3.10
-- CUDA-capable GPU (optional, for acceleration)
+- CUDA-capable GPU (recommended, for acceleration)
 
 ## Citation
 
@@ -135,4 +146,4 @@ If you use MorphIt in your research, please cite our paper:
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.

@@ -80,7 +80,8 @@ def visualize_packing(
         )
 
     # Add spheres
-    _add_spheres_to_plotter(plotter, centers, radii, sphere_color, sphere_opacity)
+    _add_spheres_to_plotter(plotter, centers, radii,
+                            sphere_color, sphere_opacity)
 
     # Add sample points if requested
     if show_sample_points and hasattr(model, "inside_samples"):

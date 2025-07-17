@@ -176,12 +176,13 @@ def test_loss_computation():
         losses = MorphItLosses(model)
 
         # Test individual loss functions
-        coverage_loss = losses.compute_coverage_loss()
-        overlap_penalty = losses.compute_overlap_penalty()
-        boundary_penalty = losses.compute_boundary_penalty()
-        surface_loss = losses.compute_surface_loss()
-        containment_loss = losses.compute_containment_loss()
-        sqem_loss = losses.compute_sqem_loss()
+        inside_dists, surface_dists, pairwise_dists = losses._compute_distance_matrices()
+        coverage_loss = losses._compute_coverage_loss(inside_dists)
+        overlap_penalty = losses._compute_overlap_penalty(pairwise_dists)
+        boundary_penalty = losses._compute_boundary_penalty(surface_dists)
+        surface_loss = losses._compute_surface_loss(surface_dists)
+        containment_loss = losses._compute_containment_loss(pairwise_dists)
+        sqem_loss = losses._compute_sqem_loss(surface_dists)
 
         print("✓ All individual loss functions work")
 
