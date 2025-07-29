@@ -159,7 +159,7 @@ python run_spherical_panda_drake_example.py
 If you use MorphIt in your research, please cite our paper:
 
 ```
-@misc{nechyporenko2025morphitflexiblesphericalapproximation,
+@misc{nechyporenko2025morphit,
       title={MorphIt: Flexible Spherical Approximation of Robot Morphology for Representation-driven Adaptation},
       author={Nataliya Nechyporenko and Yutong Zhang and Sean Campbell and Alessandro Roncone},
       year={2025},
