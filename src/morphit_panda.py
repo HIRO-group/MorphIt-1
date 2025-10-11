@@ -16,17 +16,17 @@ def batch_process_meshes():
 
     # Hardcoded parameters
     input_dir = "../mesh_models/fr3/collision"  # Directory containing mesh files
-    output_dir = "results/batch_output"  # Output directory for JSON files
+    output_dir = "results/panda_output"  # Output directory for JSON files
 
     # MorphIt configuration
     config_updates = {
         "model.num_spheres": 15,
-        "training.iterations": 50,
+        "training.iterations": 500,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 25,
+        "training.density_control_min_interval": 270,
         "visualization.enabled": False,
-        "visualization.off_screen": True,
+        "visualization.off_screen": False,
         "visualization.save_video": False,
     }
 

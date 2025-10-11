@@ -16,13 +16,20 @@ def main():
     config = get_config("MorphIt-B")
 
     # Here you can configure MorphIt based on your requirements
+    # see config.py for all options
     config_updates = {
-        "model.num_spheres": 15,
+        "model.num_spheres": 20,
         "model.mesh_path": "../mesh_models/fr3/collision/link0.obj",
-        "training.iterations": 50,
+        # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
+        # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
+        # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
+        # "model.radius_threshold": 0.03,
+        # "model.coverage_threshold": 0.02,
+        # "training.early_stopping": False,
+        "training.iterations": 200,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 25,
+        "training.density_control_min_interval": 150,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,

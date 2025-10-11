@@ -73,6 +73,8 @@ tracker = model.train()
 model.save_results("output.json")
 ```
 
+<img src="imgs/sphere-num-compare.png" alt="Number of spheres comparison" width="500">
+
 ### Batch Processing
 
 Process multiple mesh files:
@@ -140,6 +142,9 @@ python run_spherical_panda_drake_example.py
 - **MorphIt-S**: Surface-focused, precise approximations for contact-rich manipulation
 - **MorphIt-B**: Balanced approximation for general-purpose applications
 
+<img src="imgs/bvs-compare.png" alt="V-S-B visual comparson" width="500">
+
+
 ## Applications
 
 - Collision detection and avoidance
@@ -148,7 +153,7 @@ python run_spherical_panda_drake_example.py
 - Whole-body contact planning
 - Real-time motion generation
 
-## System Requirements
+## Tested on a system with the following requirements
 
 - Ubuntu 22.04.5 LTS (recommended)
 - Python 3.10

@@ -87,7 +87,8 @@ class DensityController:
 
         if should_densify:
             print("\n--- Density Control Trigger ---")
-            print(f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
+            print(
+                f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
             print(f"Small gradients: {grads_small}")
 
         return should_densify
@@ -160,7 +161,8 @@ class DensityController:
         if spheres_to_remove > 0:
             # Keep valid spheres
             valid_indices = ~prune_mask
-            self.model._centers = nn.Parameter(self.model._centers[valid_indices])
+            self.model._centers = nn.Parameter(
+                self.model._centers[valid_indices])
             self.model._radii = nn.Parameter(self.model._radii[valid_indices])
             print(f"After pruning: {len(self.model._radii)} spheres remaining")
 
@@ -197,23 +199,65 @@ class DensityController:
         space_available = max_spheres - len(self.model._radii)
         spheres_to_add = min(len(poor_regions), space_available)
 
+        repel_distance = float(self.model.radii.mean()) * 0.75
+
         if spheres_to_add > 0:
             print(f"Poorly covered regions: {len(poor_regions)}")
             print(f"Space available: {space_available}")
             print(f"Adding {spheres_to_add} new spheres")
 
-            # Select positions for new spheres
-            if len(poor_regions) > spheres_to_add:
-                # Prioritize worst coverage areas
-                sorted_indices = torch.argsort(
-                    min_distances[poorly_covered], descending=True
-                )
-                selected_indices = sorted_indices[:spheres_to_add]
-                new_centers = poor_regions[selected_indices]
-            else:
-                new_centers = poor_regions
+            # Select positions for new spheres (diversity-aware)
+            scores = min_distances[poorly_covered]  # higher = worse coverage
+            sorted_idx = torch.argsort(scores, descending=True)
+
+            existing = self.model.centers  # [N, 3]
+            selected = []
+
+            for idx in sorted_idx:
+                if len(selected) == spheres_to_add:
+                    break
+
+                p = poor_regions[idx]  # candidate [3]
+
+                # keep away from existing spheres
+                d_existing = torch.norm(existing - p.unsqueeze(0), dim=1)
+                if torch.min(d_existing) < repel_distance:
+                    continue
+
+                # keep away from already-picked new spheres
+                if selected:
+                    chosen_pts = poor_regions[torch.tensor(
+                        selected, device=self.device)]
+                    d_chosen = torch.norm(chosen_pts - p.unsqueeze(0), dim=1)
+                    if torch.min(d_chosen) < repel_distance:
+                        continue
+
+                selected.append(idx.item())
+
+            if len(selected) == 0:
+                return 0
+
+            new_centers = poor_regions[torch.tensor(
+                selected, device=self.device)]
+
+            # # Select positions for new spheres
+            # if len(poor_regions) > spheres_to_add:
+            #     # Prioritize worst coverage areas
+            #     sorted_indices = torch.argsort(
+            #         min_distances[poorly_covered], descending=True
+            #     )
+            #     selected_indices = sorted_indices[:spheres_to_add]
+            #     new_centers = poor_regions[selected_indices]
+            # else:
+            #     new_centers = poor_regions
 
             # Set appropriate radii for new spheres
+            # new_radii = (
+            #     torch.ones(len(new_centers), device=self.device)
+            #     * self.model.radii.mean()
+            #     * 0.5
+            # )
+
             new_radii = (
                 torch.ones(len(new_centers), device=self.device)
                 * self.model.radii.mean()
