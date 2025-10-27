@@ -1,0 +1,77 @@
+{
+  "centers": [
+    [0.024693967774510384, 0.08837877213954926, 0.025315409526228905],
+    [-0.02454005926847458, 0.1553332805633545, 0.025272758677601814],
+    [0.02446707710623741, 0.14936387538909912, 0.025387730449438095],
+    [0.0735437348484993, 0.15552468597888947, 0.024316247552633286],
+    [0.025256961584091187, 0.029244258999824524, 0.024751238524913788]
+  ],
+  "radii": [
+    0.03427603095769882, 0.031538136303424835, 0.03465526923537254,
+    0.032204337418079376, 0.0331539511680603
+  ],
+  "mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
+  "num_spheres": 5,
+  "config": {
+    "model": {
+      "num_spheres": 7,
+      "mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
+      "device": "cuda",
+      "initial_radius_variation": 0.4,
+      "num_inside_samples": 5000,
+      "num_surface_samples": 1000,
+      "radius_threshold": 0.03,
+      "coverage_threshold": 0.02,
+      "max_spheres": 15
+    },
+    "training": {
+      "iterations": 500,
+      "verbose_frequency": 10,
+      "logging_enabled": false,
+      "center_lr": 0.005,
+      "radius_lr": 0.0005,
+      "grad_clip_norm": 1.0,
+      "coverage_weight": 100.0,
+      "overlap_weight": 1.1,
+      "boundary_weight": 5.0,
+      "surface_weight": 5.0,
+      "containment_weight": 5.0,
+      "sqem_weight": 800.0,
+      "early_stopping": false,
+      "convergence_patience": 50,
+      "convergence_threshold": 0.001,
+      "density_control_min_interval": 270,
+      "density_control_patience": 100,
+      "density_control_grad_threshold": 0.0001
+    },
+    "visualization": {
+      "enabled": false,
+      "off_screen": false,
+      "save_video": false,
+      "video_filename": "morphit_evolution.mp4",
+      "render_interval": 5,
+      "sphere_color": "blue",
+      "sphere_opacity": 0.3,
+      "mesh_color": "white",
+      "mesh_line_width": 1.5,
+      "mesh_opacity": 0.8,
+      "show_sample_points": true,
+      "show_surface_points": true,
+      "sample_points_subsample": 100000,
+      "surface_points_subsample": 100000,
+      "sample_point_color": "red",
+      "surface_point_color": "green",
+      "point_size": 5,
+      "camera_position": [1.0, 1.0, 1.0],
+      "camera_focal_point": [0.0, 0.0, 0.0],
+      "camera_view_up": [0.0, 0.0, 1.0],
+      "camera_azimuth": 80,
+      "camera_elevation": 120,
+      "camera_roll": 120,
+      "camera_zoom": 1.5
+    },
+    "results_dir": "results/output",
+    "output_filename": "morphit_results.json",
+    "random_seed": null
+  }
+}

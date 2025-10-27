@@ -1,0 +1,71 @@
+{
+  "centers": [
+    [0.026424702256917953, 0.025148194283246994, 0.025130653753876686],
+    [0.07469924539327621, 0.025142263621091843, 0.02463422529399395]
+  ],
+  "radii": [0.032125070691108704, 0.031481366604566574],
+  "mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
+  "num_spheres": 2,
+  "config": {
+    "model": {
+      "num_spheres": 7,
+      "mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
+      "device": "cuda",
+      "initial_radius_variation": 0.4,
+      "num_inside_samples": 5000,
+      "num_surface_samples": 1000,
+      "radius_threshold": 0.03,
+      "coverage_threshold": 0.02,
+      "max_spheres": 15
+    },
+    "training": {
+      "iterations": 500,
+      "verbose_frequency": 10,
+      "logging_enabled": false,
+      "center_lr": 0.005,
+      "radius_lr": 0.0005,
+      "grad_clip_norm": 1.0,
+      "coverage_weight": 100.0,
+      "overlap_weight": 1.1,
+      "boundary_weight": 5.0,
+      "surface_weight": 5.0,
+      "containment_weight": 5.0,
+      "sqem_weight": 800.0,
+      "early_stopping": false,
+      "convergence_patience": 50,
+      "convergence_threshold": 0.001,
+      "density_control_min_interval": 270,
+      "density_control_patience": 100,
+      "density_control_grad_threshold": 0.0001
+    },
+    "visualization": {
+      "enabled": false,
+      "off_screen": false,
+      "save_video": false,
+      "video_filename": "morphit_evolution.mp4",
+      "render_interval": 5,
+      "sphere_color": "blue",
+      "sphere_opacity": 0.3,
+      "mesh_color": "white",
+      "mesh_line_width": 1.5,
+      "mesh_opacity": 0.8,
+      "show_sample_points": true,
+      "show_surface_points": true,
+      "sample_points_subsample": 100000,
+      "surface_points_subsample": 100000,
+      "sample_point_color": "red",
+      "surface_point_color": "green",
+      "point_size": 5,
+      "camera_position": [1.0, 1.0, 1.0],
+      "camera_focal_point": [0.0, 0.0, 0.0],
+      "camera_view_up": [0.0, 0.0, 1.0],
+      "camera_azimuth": 80,
+      "camera_elevation": 120,
+      "camera_roll": 120,
+      "camera_zoom": 1.5
+    },
+    "results_dir": "results/output",
+    "output_filename": "morphit_results.json",
+    "random_seed": null
+  }
+}
