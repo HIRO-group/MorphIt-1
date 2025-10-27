@@ -10,10 +10,10 @@ import sys
 from pathlib import Path
 from config import get_config, update_config_from_dict
 from morphit import MorphIt
-from scripts.create_box_urdf import modify_urdf
+from scripts.create_box_urdf import modify_box_urdf
 
 
-def create_spheres(input_dir, output_dir, num_spheres_per_joint, asset_name):
+def create_spheres(input_dir, output_dir, num_spheres_per_joint):
     # MorphIt configuration
     config_updates = {
         "model.num_spheres": num_spheres_per_joint,
@@ -54,7 +54,7 @@ def create_spheres(input_dir, output_dir, num_spheres_per_joint, asset_name):
     # Process each mesh file
     for mesh_file in sorted(mesh_files):
         mesh_name = mesh_file.stem  # Get filename without extension
-        output_name = f"{asset_name}_{mesh_name}.json"
+        output_name = f"{mesh_name}.json"
         output_path = Path(output_dir) / output_name
 
         print(f"Processing: {mesh_file.name} -> {output_name}")
@@ -93,15 +93,16 @@ def create_spheres(input_dir, output_dir, num_spheres_per_joint, asset_name):
 
 
 if __name__ == "__main__":
-    num_spheres_per_joint = 10
+
+    num_spheres_per_joint = 20
     asset_name = 'pink_box'
 
-    mesh_dir = "/home/ava/Research/Codes/fall25/assets/pink_box/" 
+    mesh_dir = "../assets/urdfs/pink_box/" 
     spheres_dir = f"results/spheres/{asset_name}_{num_spheres_per_joint}"
 
-    # create_spheres(input_dir=mesh_dir, output_dir=spheres_dir, num_spheres_per_joint=num_spheres_per_joint, asset_name=asset_name)
+    create_spheres(input_dir=mesh_dir, output_dir=spheres_dir, num_spheres_per_joint=num_spheres_per_joint)
 
-    orig_urdf = "/home/ava/Research/Codes/fall25/assets/pink_box/pink_box.urdf"
+    orig_urdf = "../assets/urdfs/pink_box/pink_box.urdf"
     output_urdf = f"results/urdfs/{asset_name}_{num_spheres_per_joint}.urdf"
 
-    modify_urdf(input_urdf_path=orig_urdf, spheres_dir=spheres_dir, output_urdf_path=output_urdf)
+    modify_box_urdf(input_urdf_path=orig_urdf, spheres_dir=spheres_dir, output_urdf_path=output_urdf)

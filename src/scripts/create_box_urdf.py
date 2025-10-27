@@ -104,7 +104,7 @@ def create_sphere_link(center, radius, parent_link_name, sphere_idx):
 
 # --- Minimal URDF modifier for the box ---
 
-def modify_urdf(input_urdf_path, spheres_dir, output_urdf_path):
+def modify_box_urdf(input_urdf_path, spheres_dir, output_urdf_path):
     """Add per-sphere links (visual+collision) to the pink_box_link, like the Panda script."""
     # Parse URDF preserving comments
     parser = ET.XMLParser(target=ET.TreeBuilder(insert_comments=True))
@@ -149,8 +149,7 @@ def modify_urdf(input_urdf_path, spheres_dir, output_urdf_path):
 
     # Read sphere data: use a single JSON file named 'pink_box_link.json'
 
-
-    json_path = os.path.join(spheres_dir, "pink_box_pink_box.json")
+    json_path = os.path.join(spheres_dir, 'pink_box.json')
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"No sphere data found: {json_path}")
 
