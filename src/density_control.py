@@ -87,8 +87,7 @@ class DensityController:
 
         if should_densify:
             print("\n--- Density Control Trigger ---")
-            print(
-                f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
+            print(f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
             print(f"Small gradients: {grads_small}")
 
         return should_densify
@@ -128,9 +127,54 @@ class DensityController:
 
         return spheres_added, spheres_removed
 
+    # def _prune_spheres(self, radius_threshold: float) -> int:
+    #     """
+    #     Prune ineffective spheres.
+
+    #     Args:
+    #         radius_threshold: Minimum radius threshold
+
+    #     Returns:
+    #         Number of spheres removed
+    #     """
+    #     # Find spheres with small radius
+    #     small_radius_mask = self.model.radii < radius_threshold
+
+    #     # Find spheres with centers outside mesh
+    #     with torch.no_grad():
+    #         centers_np = self.model.centers.detach().cpu().numpy()
+    #         outside_mesh_mask = torch.tensor(
+    #             ~check_mesh_contains(self.model.query_mesh, centers_np),
+    #             device=self.device,
+    #             dtype=torch.bool,
+    #         )
+
+    #     # Combine pruning criteria
+    #     prune_mask = small_radius_mask | outside_mesh_mask
+    #     spheres_to_remove = prune_mask.sum().item()
+
+    #     print(f"Spheres to prune: {spheres_to_remove}")
+    #     print(f"  - Small radius: {small_radius_mask.sum().item()}")
+    #     print(f"  - Center outside mesh: {outside_mesh_mask.sum().item()}")
+
+    #     if spheres_to_remove > 0:
+    #         # Keep valid spheres
+    #         valid_indices = ~prune_mask
+    #         self.model._centers = nn.Parameter(
+    #             self.model._centers[valid_indices])
+    #         self.model._radii = nn.Parameter(self.model._radii[valid_indices])
+    #         print(f"After pruning: {len(self.model._radii)} spheres remaining")
+
+    #     return spheres_to_remove
+
     def _prune_spheres(self, radius_threshold: float) -> int:
         """
         Prune ineffective spheres.
+
+        Criteria:
+        1. Small radius
+        2. Center outside mesh
+        3. Deep inside volume (far from surface) and redundant
 
         Args:
             radius_threshold: Minimum radius threshold
@@ -138,35 +182,109 @@ class DensityController:
         Returns:
             Number of spheres removed
         """
-        # Find spheres with small radius
-        small_radius_mask = self.model.radii < radius_threshold
-
-        # Find spheres with centers outside mesh
         with torch.no_grad():
-            centers_np = self.model.centers.detach().cpu().numpy()
+            centers = self.model.centers
+            radii = self.model.radii
+            num_spheres = len(radii)
+
+            # Criterion 1: Small radius
+            small_radius_mask = radii < radius_threshold
+
+            # Criterion 2: Centers outside mesh
+            centers_np = centers.detach().cpu().numpy()
             outside_mesh_mask = torch.tensor(
                 ~check_mesh_contains(self.model.query_mesh, centers_np),
                 device=self.device,
                 dtype=torch.bool,
             )
 
-        # Combine pruning criteria
-        prune_mask = small_radius_mask | outside_mesh_mask
-        spheres_to_remove = prune_mask.sum().item()
+            # Criterion 3: Redundancy score (deep + covered by neighbors)
+            redundancy_mask = self._compute_redundancy_mask(centers, radii)
 
-        print(f"Spheres to prune: {spheres_to_remove}")
-        print(f"  - Small radius: {small_radius_mask.sum().item()}")
-        print(f"  - Center outside mesh: {outside_mesh_mask.sum().item()}")
+            # Combine criteria
+            prune_mask = small_radius_mask | outside_mesh_mask | redundancy_mask
+            spheres_to_remove = prune_mask.sum().item()
 
-        if spheres_to_remove > 0:
-            # Keep valid spheres
-            valid_indices = ~prune_mask
-            self.model._centers = nn.Parameter(
-                self.model._centers[valid_indices])
-            self.model._radii = nn.Parameter(self.model._radii[valid_indices])
-            print(f"After pruning: {len(self.model._radii)} spheres remaining")
+            print(f"Spheres to prune: {spheres_to_remove}")
+            print(f"  - Small radius: {small_radius_mask.sum().item()}")
+            print(f"  - Center outside mesh: {outside_mesh_mask.sum().item()}")
+            print(f"  - Redundant (deep + covered): {redundancy_mask.sum().item()}")
 
-        return spheres_to_remove
+            if spheres_to_remove > 0:
+                valid_indices = ~prune_mask
+                self.model._centers = nn.Parameter(self.model._centers[valid_indices])
+                self.model._radii = nn.Parameter(self.model._radii[valid_indices])
+                print(f"After pruning: {len(self.model._radii)} spheres remaining")
+
+            return spheres_to_remove
+
+    def _compute_redundancy_mask(
+        self,
+        centers: torch.Tensor,
+        radii: torch.Tensor,
+        surface_weight: float = 0.7,
+        coverage_weight: float = 0.3,
+        prune_fraction: float = 0.1,
+    ) -> torch.Tensor:
+        """
+        Identify redundant spheres that can be removed.
+
+        Spheres are considered redundant if they are:
+        - Far from the surface (deep inside the volume)
+        - Well covered by neighboring spheres
+
+        Args:
+            centers: Sphere centers
+            radii: Sphere radii
+            surface_weight: Weight for surface distance in score
+            coverage_weight: Weight for neighbor coverage in score
+            prune_fraction: Fraction of spheres to mark as redundant
+
+        Returns:
+            Boolean mask of spheres to prune
+        """
+        num_spheres = len(radii)
+        if num_spheres <= self.config.model.num_spheres:
+            return torch.zeros(num_spheres, dtype=torch.bool, device=self.device)
+
+        # Distance from each sphere center to mesh surface
+        surface_dists = torch.norm(
+            self.model.surface_samples.unsqueeze(1) - centers.unsqueeze(0), dim=2
+        ).min(dim=0)[0]
+
+        # Normalize to [0, 1] - higher = farther from surface = more redundant
+        surface_score = (surface_dists - surface_dists.min()) / (
+            surface_dists.max() - surface_dists.min() + 1e-8
+        )
+
+        # Coverage by neighbors: how much is each sphere overlapped by others
+        pairwise_dists = torch.norm(centers.unsqueeze(1) - centers.unsqueeze(0), dim=2)
+        pairwise_dists += torch.eye(num_spheres, device=self.device) * 1e6  # mask self
+
+        # For each sphere, find how many neighbors overlap it significantly
+        radii_sum = radii.unsqueeze(1) + radii.unsqueeze(0)
+        overlap_depth = torch.relu(radii_sum - pairwise_dists)
+        coverage_score = overlap_depth.sum(dim=1) / (radii + 1e-8)
+
+        # Normalize coverage score
+        coverage_score = (coverage_score - coverage_score.min()) / (
+            coverage_score.max() - coverage_score.min() + 1e-8
+        )
+
+        # Combined redundancy score: high = more redundant
+        redundancy_score = (
+            surface_weight * surface_score + coverage_weight * coverage_score
+        )
+
+        # Mark top fraction as redundant
+        num_to_prune = max(0, num_spheres - self.config.model.num_spheres)
+        if num_to_prune == 0:
+            return torch.zeros(num_spheres, dtype=torch.bool, device=self.device)
+
+        threshold = torch.topk(redundancy_score, num_to_prune).values[-1]
+        redundancy_mask = redundancy_score >= threshold
+
+        return redundancy_mask
 
     def _add_spheres_to_poor_coverage(
         self, coverage_threshold: float, max_spheres: int
@@ -226,8 +344,9 @@ class DensityController:
 
                 # keep away from already-picked new spheres
                 if selected:
-                    chosen_pts = poor_regions[torch.tensor(
-                        selected, device=self.device)]
+                    chosen_pts = poor_regions[
+                        torch.tensor(selected, device=self.device)
+                    ]
                     d_chosen = torch.norm(chosen_pts - p.unsqueeze(0), dim=1)
                     if torch.min(d_chosen) < repel_distance:
                         continue
@@ -237,8 +356,7 @@ class DensityController:
             if len(selected) == 0:
                 return 0
 
-            new_centers = poor_regions[torch.tensor(
-                selected, device=self.device)]
+            new_centers = poor_regions[torch.tensor(selected, device=self.device)]
 
             # # Select positions for new spheres
             # if len(poor_regions) > spheres_to_add:

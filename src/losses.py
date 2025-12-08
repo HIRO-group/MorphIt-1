@@ -87,6 +87,35 @@ class MorphItLosses:
 
         return torch.mean(closest_dist**2)
 
+    def _compute_mass_loss(self) -> torch.Tensor:
+        sphere_masses = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        total_mass = sphere_masses.sum()
+        return (total_mass - self.model.mesh_mass) ** 2
+
+    def _compute_com_loss(self) -> torch.Tensor:
+        sphere_masses = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        total_mass = sphere_masses.sum()
+        com = (sphere_masses.unsqueeze(1) * self.model.centers).sum(dim=0) / total_mass
+        return torch.sum((com - self.model.mesh_com) ** 2)
+
+    def _compute_inertia_loss(self) -> torch.Tensor:
+        radii = self.model.radii
+        centers = self.model.centers
+        m = (4.0 / 3.0) * np.pi * (radii**3)
+
+        I = torch.zeros(3, 3, device=self.device)
+        eye3 = torch.eye(3, device=self.device)
+        I_diag = (2.0 / 5.0) * m * (radii**2)
+
+        for i in range(len(centers)):
+            ci = centers[i]
+            I_center = eye3 * I_diag[i]
+            ci_sq = (ci * ci).sum()
+            I_parallel = m[i] * (ci_sq * eye3 - torch.outer(ci, ci))
+            I += I_center + I_parallel
+
+        return torch.sum((I - self.model.mesh_inertia) ** 2)
+
     def _compute_distance_matrices(self):
         """Pre-compute distance matrices used across multiple loss functions."""
         centers = self.model.centers
@@ -120,6 +149,9 @@ class MorphItLosses:
             "surface_loss": self._compute_surface_loss(surface_dists),
             "containment_loss": self._compute_containment_loss(pairwise_dists),
             "sqem_loss": self._compute_sqem_loss(surface_dists),
+            "mass_loss": self._compute_mass_loss(),
+            "com_loss": self._compute_com_loss(),
+            "inertia_loss": self._compute_inertia_loss(),
         }
 
         return losses
@@ -160,4 +192,7 @@ class MorphItLosses:
             "surface_loss": config.surface_weight,
             "containment_loss": config.containment_weight,
             "sqem_loss": config.sqem_weight,
+            "mass_loss": config.mass_weight,
+            "com_loss": config.com_weight,
+            "inertia_loss": config.inertia_weight,
         }

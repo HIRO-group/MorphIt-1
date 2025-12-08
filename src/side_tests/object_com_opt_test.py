@@ -8,7 +8,6 @@ mesh.apply_translation(-mesh.center_mass)  # move COM to (0,0,0)
 
 V_mesh = mesh.volume
 M_target = rho * V_mesh
-
 COM_target = mesh.center_mass  # shape (3,)
 
 # moment of inertia about some origin; be consistent later
@@ -34,7 +33,7 @@ def get_radii():
 
 
 def mass_spheres(centers, radii, rho):
-    m = rho * (4.0 / 3.0) * torch.pi * radii**3   # (N,)
+    m = rho * (4.0 / 3.0) * torch.pi * radii**3  # (N,)
     M = m.sum()
     return M, m
 
@@ -56,12 +55,12 @@ def inertia_spheres_about_origin(centers, radii, m):
     eye3 = torch.eye(3, dtype=centers.dtype, device=centers.device)
 
     for i in range(N):
-        ci = centers[i]             # (3,)
+        ci = centers[i]  # (3,)
         mi = m[i]
         Ri_term = I_center_diag[i]  # scalar tensor
 
         # I_center about sphere center: diag(Ri_term, Ri_term, Ri_term)
-        I_center = eye3 * Ri_term   # (3,3), stays differentiable
+        I_center = eye3 * Ri_term  # (3,3), stays differentiable
 
         # parallel axis term: mi (|c|^2 I - c c^T)
         ci_sq = (ci * ci).sum()
@@ -72,9 +71,17 @@ def inertia_spheres_about_origin(centers, radii, m):
     return I
 
 
-def loss(centers, radii_unconstrained, rho,
-         M_target, COM_target, I_target,
-         wM=1.0, wCOM=1.0, wI=1.0):
+def loss(
+    centers,
+    radii_unconstrained,
+    rho,
+    M_target,
+    COM_target,
+    I_target,
+    wM=1.0,
+    wCOM=1.0,
+    wI=1.0,
+):
 
     radii = torch.nn.functional.softplus(radii_unconstrained) + 1e-6
 
@@ -83,9 +90,9 @@ def loss(centers, radii_unconstrained, rho,
     I = inertia_spheres_about_origin(centers, radii, m)
 
     # scalar losses
-    mass_loss = (M - M_target)**2
-    com_loss = torch.sum((COM - COM_target)**2)
-    inertia_loss = torch.sum((I - I_target)**2)  # Frobenius norm squared
+    mass_loss = (M - M_target) ** 2
+    com_loss = torch.sum((COM - COM_target) ** 2)
+    inertia_loss = torch.sum((I - I_target) ** 2)  # Frobenius norm squared
 
     # optional: keep centers roughly inside the cube, radii small, etc.
     # Example: soft penalty for going outside bounds [-L/2, L/2]
@@ -101,22 +108,14 @@ optimizer = torch.optim.Adam([centers, radii_unconstrained], lr=1e-2)
 
 # fixed target tensors on the right device/dtype
 M_target_t = torch.tensor(M_target, dtype=centers.dtype, device=centers.device)
-COM_target_t = torch.tensor(
-    COM_target, dtype=centers.dtype, device=centers.device)
+COM_target_t = torch.tensor(COM_target, dtype=centers.dtype, device=centers.device)
 I_target_t = torch.tensor(I_target, dtype=centers.dtype, device=centers.device)
 
 num_steps = 10000
 
 for step in range(1, num_steps + 1):
     optimizer.zero_grad()
-    L = loss(
-        centers,
-        radii_unconstrained,
-        rho,
-        M_target_t,
-        COM_target_t,
-        I_target_t
-    )
+    L = loss(centers, radii_unconstrained, rho, M_target_t, COM_target_t, I_target_t)
     L.backward()
     optimizer.step()
 

@@ -39,6 +39,9 @@ class ConvergenceTracker:
                 "surface_loss": [],
                 "containment_loss": [],
                 "sqem_loss": [],
+                "mass_loss": [],
+                "com_loss": [],
+                "inertia_loss": [],
             },
             "gradient_info": {"position_grad_mag": [], "radius_grad_mag": []},
             "sphere_stats": {

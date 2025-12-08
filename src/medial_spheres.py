@@ -708,108 +708,108 @@ def visualize_medial_spheres(
 # ----------------------------
 
 
-def create_test_mesh(mesh_type: str = "box", **kwargs) -> trimesh.Trimesh:
-    """
-    Create a simple test mesh.
+# def create_test_mesh(mesh_type: str = "box", **kwargs) -> trimesh.Trimesh:
+#     """
+#     Create a simple test mesh.
 
-    Args:
-        mesh_type: One of "box", "sphere", "cylinder", "torus"
-        **kwargs: Additional arguments passed to creation function
+#     Args:
+#         mesh_type: One of "box", "sphere", "cylinder", "torus"
+#         **kwargs: Additional arguments passed to creation function
 
-    Returns:
-        trimesh.Trimesh
-    """
-    if mesh_type == "box":
-        extents = kwargs.get("extents", [1.0, 1.0, 1.0])
-        mesh = trimesh.creation.box(extents=extents)
-    elif mesh_type == "sphere":
-        radius = kwargs.get("radius", 0.5)
-        mesh = trimesh.creation.icosphere(radius=radius, subdivisions=3)
-    elif mesh_type == "cylinder":
-        radius = kwargs.get("radius", 0.3)
-        height = kwargs.get("height", 1.0)
-        mesh = trimesh.creation.cylinder(radius=radius, height=height)
-    elif mesh_type == "torus":
-        major_radius = kwargs.get("major_radius", 0.5)
-        minor_radius = kwargs.get("minor_radius", 0.2)
-        mesh = trimesh.creation.torus(
-            major_radius=major_radius, minor_radius=minor_radius
-        )
-    else:
-        raise ValueError(f"Unknown mesh type: {mesh_type}")
+#     Returns:
+#         trimesh.Trimesh
+#     """
+#     if mesh_type == "box":
+#         extents = kwargs.get("extents", [1.0, 1.0, 1.0])
+#         mesh = trimesh.creation.box(extents=extents)
+#     elif mesh_type == "sphere":
+#         radius = kwargs.get("radius", 0.5)
+#         mesh = trimesh.creation.icosphere(radius=radius, subdivisions=3)
+#     elif mesh_type == "cylinder":
+#         radius = kwargs.get("radius", 0.3)
+#         height = kwargs.get("height", 1.0)
+#         mesh = trimesh.creation.cylinder(radius=radius, height=height)
+#     elif mesh_type == "torus":
+#         major_radius = kwargs.get("major_radius", 0.5)
+#         minor_radius = kwargs.get("minor_radius", 0.2)
+#         mesh = trimesh.creation.torus(
+#             major_radius=major_radius, minor_radius=minor_radius
+#         )
+#     else:
+#         raise ValueError(f"Unknown mesh type: {mesh_type}")
 
-    return mesh
-
-
-def run_demo():
-    """Run a demonstration of the medial spheres algorithm."""
-    logger.info("=" * 60)
-    logger.info("Medial Spheres Demo")
-    logger.info("=" * 60)
-
-    # Create test mesh - using a box for faster testing
-    logger.info("\nCreating test mesh (box)...")
-    mesh = create_test_mesh("box", extents=[0.5, 0.5, 0.5])
-    logger.info(f"Mesh: {len(mesh.vertices)} vertices, {len(mesh.faces)} faces")
-    logger.info(f"Mesh bounds: {mesh.bounds}")
-    logger.info(f"Mesh volume: {mesh.volume:.4f}")
-
-    # Compute medial spheres with coarser voxel size for speed
-    logger.info("\nComputing medial spheres...")
-    voxel_size = mesh.scale / 8  # Coarser for speed
-
-    result = compute_medial_spheres(
-        mesh,
-        voxel_size=voxel_size,
-        samples_per_voxel=32,
-        angle_threshold=0.6,  # ~34 degrees, as in paper
-        verbose=True,
-    )
-
-    # Print results
-    logger.info("\n" + "=" * 60)
-    logger.info("Results Summary")
-    logger.info("=" * 60)
-    logger.info(f"Number of spheres: {result.num_spheres_output}")
-    logger.info(f"Computation time: {result.computation_time:.2f}s")
-    logger.info(f"Voxels processed: {result.num_voxels_processed}")
-    logger.info(f"Candidates found: {result.num_candidates_found}")
-
-    if result.num_spheres_output > 0:
-        logger.info(f"\nSphere statistics:")
-        logger.info(f"  Radius min: {result.radii.min():.4f}")
-        logger.info(f"  Radius max: {result.radii.max():.4f}")
-        logger.info(f"  Radius mean: {result.radii.mean():.4f}")
-        logger.info(f"  Radius std: {result.radii.std():.4f}")
-
-        # Compute approximate volume coverage
-        sphere_volume = np.sum(4 / 3 * np.pi * result.radii**3)
-        logger.info(f"\nVolume analysis:")
-        logger.info(f"  Total sphere volume (with overlap): {sphere_volume:.4f}")
-        logger.info(f"  Mesh volume: {mesh.volume:.4f}")
-        logger.info(f"  Volume ratio: {sphere_volume/mesh.volume:.2f}")
-
-    # Create 3D visualization (GLB for external viewing)
-    logger.info("\nCreating 3D visualization...")
-    scene = visualize_medial_spheres(
-        mesh,
-        result.centers,
-        result.radii,
-        max_spheres_to_show=200,
-        mesh_color=(0.7, 0.7, 0.7, 0.3),
-        sphere_color=(0.2, 0.6, 1.0, 0.7),
-    )
-
-    scene.show()
-
-    return result, scene, mesh
+#     return mesh
 
 
-if __name__ == "__main__":
-    result, scene, mesh = run_demo()
+# def run_demo():
+#     """Run a demonstration of the medial spheres algorithm."""
+#     logger.info("=" * 60)
+#     logger.info("Medial Spheres Demo")
+#     logger.info("=" * 60)
 
-    # Print first few spheres
-    if result.num_spheres_output > 0:
-        logger.info("\nFirst 5 spheres:")
-        for i in range(min(5, result.num_spheres_output)):
-            logger.info(f"  Center: {result.centers[i]}, Radius: {result.radii[i]:.4f}")
+#     # Create test mesh - using a box for faster testing
+#     logger.info("\nCreating test mesh (box)...")
+#     mesh = create_test_mesh("box", extents=[0.5, 0.5, 0.5])
+#     logger.info(f"Mesh: {len(mesh.vertices)} vertices, {len(mesh.faces)} faces")
+#     logger.info(f"Mesh bounds: {mesh.bounds}")
+#     logger.info(f"Mesh volume: {mesh.volume:.4f}")
+
+#     # Compute medial spheres with coarser voxel size for speed
+#     logger.info("\nComputing medial spheres...")
+#     voxel_size = mesh.scale / 8  # Coarser for speed
+
+#     result = compute_medial_spheres(
+#         mesh,
+#         voxel_size=voxel_size,
+#         samples_per_voxel=32,
+#         angle_threshold=0.6,  # ~34 degrees, as in paper
+#         verbose=True,
+#     )
+
+#     # Print results
+#     logger.info("\n" + "=" * 60)
+#     logger.info("Results Summary")
+#     logger.info("=" * 60)
+#     logger.info(f"Number of spheres: {result.num_spheres_output}")
+#     logger.info(f"Computation time: {result.computation_time:.2f}s")
+#     logger.info(f"Voxels processed: {result.num_voxels_processed}")
+#     logger.info(f"Candidates found: {result.num_candidates_found}")
+
+#     if result.num_spheres_output > 0:
+#         logger.info(f"\nSphere statistics:")
+#         logger.info(f"  Radius min: {result.radii.min():.4f}")
+#         logger.info(f"  Radius max: {result.radii.max():.4f}")
+#         logger.info(f"  Radius mean: {result.radii.mean():.4f}")
+#         logger.info(f"  Radius std: {result.radii.std():.4f}")
+
+#         # Compute approximate volume coverage
+#         sphere_volume = np.sum(4 / 3 * np.pi * result.radii**3)
+#         logger.info(f"\nVolume analysis:")
+#         logger.info(f"  Total sphere volume (with overlap): {sphere_volume:.4f}")
+#         logger.info(f"  Mesh volume: {mesh.volume:.4f}")
+#         logger.info(f"  Volume ratio: {sphere_volume/mesh.volume:.2f}")
+
+#     # Create 3D visualization (GLB for external viewing)
+#     logger.info("\nCreating 3D visualization...")
+#     scene = visualize_medial_spheres(
+#         mesh,
+#         result.centers,
+#         result.radii,
+#         max_spheres_to_show=200,
+#         mesh_color=(0.7, 0.7, 0.7, 0.3),
+#         sphere_color=(0.2, 0.6, 1.0, 0.7),
+#     )
+
+#     scene.show()
+
+#     return result, scene, mesh
+
+
+# if __name__ == "__main__":
+#     result, scene, mesh = run_demo()
+
+#     # Print first few spheres
+#     if result.num_spheres_output > 0:
+#         logger.info("\nFirst 5 spheres:")
+#         for i in range(min(5, result.num_spheres_output)):
+#             logger.info(f"  Center: {result.centers[i]}, Radius: {result.radii[i]:.4f}")

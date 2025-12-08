@@ -18,8 +18,13 @@ class ModelConfig:
     # Sphere initialization parameters
     # Controls size variation (log-normal sigma)
     initial_radius_variation: float = 0.4
-    num_inside_samples: int = 5000  # Points inside mesh for coverage computation
-    num_surface_samples: int = 1000  # Points on mesh surface for surface loss
+    num_inside_samples: int = 10000  # Points inside mesh for coverage computation
+    num_surface_samples: int = 10000  # Points on mesh surface for surface loss
+
+    initialization_method: str = "volume"  # "volume", "grid", or "medial"
+    grid_resolution: int = 4  # for grid initialization
+    medial_voxel_divisor: float = 2.0  # voxel_size = mesh.scale / this value
+    medial_angle_threshold: float = 0.6
 
     # Density control parameters
     radius_threshold: float = 0.005  # Threshold for pruning small spheres
@@ -36,30 +41,33 @@ class TrainingConfig:
     iterations: int = 50
     verbose_frequency: int = 50
 
-    # Looging the packing evolution
+    # Logging the packing evolution
     logging_enabled: bool = False
 
     # Optimizer parameters
-    center_lr: float = 0.005
-    radius_lr: float = 0.0005
+    center_lr: float = 0.001
+    radius_lr: float = 0.001
     grad_clip_norm: float = 1.0
 
     # Loss weights - MorphIt-B configuration
-    coverage_weight: float = 100.0
-    overlap_weight: float = 1.1
+    coverage_weight: float = 10.0
+    overlap_weight: float = 0.01
     boundary_weight: float = 5.0
     surface_weight: float = 5.0
     containment_weight: float = 5.0
     sqem_weight: float = 800.0
+    mass_weight: float = 1.0
+    com_weight: float = 1.0
+    inertia_weight: float = 1.0
 
     # Early stopping parameters
-    early_stopping: bool = True
+    early_stopping: bool = False
     convergence_patience: int = 50
     convergence_threshold: float = 0.001
 
     # Density control parameters
     density_control_min_interval: int = 100
-    density_control_patience: int = 100
+    density_control_patience: int = 1
     density_control_grad_threshold: float = 1e-4
 
 
@@ -124,6 +132,9 @@ LOSS_WEIGHT_CONFIGS = {
         "surface_weight": 0.1,
         "containment_weight": 50.0,
         "sqem_weight": 100.0,
+        "mass_weight": 1.0,
+        "com_weight": 1.0,
+        "inertia_weight": 1.0,
     },
     "MorphIt-S": {
         "coverage_weight": 0.01,
@@ -132,14 +143,20 @@ LOSS_WEIGHT_CONFIGS = {
         "surface_weight": 100.0,
         "containment_weight": 1.0,
         "sqem_weight": 1000.0,
+        "mass_weight": 1.0,
+        "com_weight": 1.0,
+        "inertia_weight": 1.0,
     },
     "MorphIt-B": {
-        "coverage_weight": 100.0,
-        "overlap_weight": 1.1,
-        "boundary_weight": 5.0,
-        "surface_weight": 5.0,
-        "containment_weight": 5.0,
-        "sqem_weight": 800.0,
+        "coverage_weight": 1.0,
+        "overlap_weight": 0.01,
+        "boundary_weight": 100.0,
+        "surface_weight": 100.0,
+        "containment_weight": 1.0,
+        "sqem_weight": 100.0,
+        "mass_weight": 500.0,
+        "com_weight": 10.0,
+        "inertia_weight": 100.0,
     },
 }
 
@@ -189,8 +206,7 @@ def update_config_from_dict(
                 if hasattr(section_config, param):
                     setattr(section_config, param, value)
                 else:
-                    raise ValueError(
-                        f"Unknown parameter: {param} in section {section}")
+                    raise ValueError(f"Unknown parameter: {param} in section {section}")
             else:
                 raise ValueError(f"Unknown section: {section}")
         else:

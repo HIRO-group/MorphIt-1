@@ -14,6 +14,7 @@ from pathlib import Path
 
 from config import MorphItConfig
 from inside_mesh import check_mesh_contains
+from medial_spheres import compute_medial_spheres
 
 
 class MorphIt(nn.Module):
@@ -63,6 +64,21 @@ class MorphIt(nn.Module):
         self.query_mesh = trimesh.load(self.mesh_path, force="mesh")
         self.mesh_volume = self.query_mesh.volume
 
+        self.mesh_mass = self.query_mesh.volume  # assuming density=1
+        print(f"Mesh volume: {self.mesh_volume:.4f}")
+        print(f"Mesh mass (density=1): {self.mesh_mass:.4f}")
+        self.mesh_com = torch.tensor(
+            self.query_mesh.center_mass, dtype=torch.float32, device=self.device
+        )
+        self.mesh_inertia = torch.tensor(
+            self.query_mesh.moment_inertia, dtype=torch.float32, device=self.device
+        )
+
+        print(f"Mesh volume: {self.mesh_volume:.4f}")
+        print(f"Mesh mass (density=1): {self.mesh_mass:.4f}")
+        print(f"Mesh center of mass: {self.mesh_com.cpu().numpy()}")
+        print(f"Mesh inertia tensor:\n{self.mesh_inertia.cpu().numpy()}")
+
         # Initialize components
         self._initialize_spheres()
         self._initialize_sample_points()
@@ -72,19 +88,21 @@ class MorphIt(nn.Module):
         self.pl = None  # PyVista plotter placeholder
 
     def _initialize_spheres(self):
-        """Initialize sphere centers and radii with optimal placement."""
-        # Sample centers inside the mesh
-        centers = self._sample_centers_inside_mesh(self.num_spheres)
+        """Initialize sphere centers and radii based on configured method."""
+        method = self.config.model.initialization_method
 
-        # Initialize radii with variation
-        radii = self._initialize_radii_with_variation(self.num_spheres)
+        if method == "grid":
+            centers, radii = self._initialize_spheres_grid()
+        elif method == "medial":
+            centers, radii = self._initialize_spheres_medial()
+        else:  # "volume" - original method
+            centers = self._sample_centers_inside_mesh(self.num_spheres)
+            radii = self._initialize_radii_with_variation(self.num_spheres)
 
-        # Set as trainable parameters
         self._centers = nn.Parameter(centers)
         self._radii = nn.Parameter(radii)
-
-        # Print statistics
-        self._print_initialization_stats(radii)
+        self.num_spheres = len(radii)
+        self._print_initialization_stats(self._radii)
 
     def _sample_centers_inside_mesh(self, num_spheres: int) -> torch.Tensor:
         """Sample sphere centers inside the mesh volume."""
@@ -133,6 +151,53 @@ class MorphIt(nn.Module):
         radius_factors = log_normal_samples * volume_scale_factor
 
         return mean_radius * radius_factors
+
+    def _initialize_spheres_grid(self):
+        """Initialize spheres on a regular grid inside the mesh."""
+        resolution = self.config.model.grid_resolution
+        bounds = self.query_mesh.bounds
+
+        # Create grid points
+        x = np.linspace(bounds[0, 0], bounds[1, 0], resolution)
+        y = np.linspace(bounds[0, 1], bounds[1, 1], resolution)
+        z = np.linspace(bounds[0, 2], bounds[1, 2], resolution)
+
+        grid_points = np.array(np.meshgrid(x, y, z)).T.reshape(-1, 3)
+
+        # Keep only points inside mesh
+        inside = check_mesh_contains(self.query_mesh, grid_points)
+        centers = grid_points  # [inside]
+
+        centers = torch.tensor(centers, dtype=torch.float32, device=self.device)
+
+        # Uniform radius based on mesh volume and sphere count
+        target_radius = (3 * self.mesh_volume / (4 * np.pi * len(centers))) ** (1 / 3)
+        radii = torch.full(
+            (len(centers),), target_radius, dtype=torch.float32, device=self.device
+        )
+
+        return centers, radii
+
+    def _initialize_spheres_medial(self):
+        """Initialize spheres using medial sphere algorithm."""
+        voxel_size = self.query_mesh.scale / self.config.model.medial_voxel_divisor
+
+        result = compute_medial_spheres(
+            self.query_mesh,
+            voxel_size=voxel_size,
+            angle_threshold=self.config.model.medial_angle_threshold,
+            verbose=True,
+        )
+
+        centers = torch.tensor(result.centers, dtype=torch.float32, device=self.device)
+
+        # Uniform radius based on mesh volume and sphere count
+        target_radius = (3 * self.mesh_volume / (4 * np.pi * len(centers))) ** (1 / 3)
+        radii = torch.full(
+            (len(centers),), target_radius, dtype=torch.float32, device=self.device
+        )
+
+        return centers, radii
 
     def _print_initialization_stats(self, radii: torch.Tensor):
         """Print initialization statistics."""
