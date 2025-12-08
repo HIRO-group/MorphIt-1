@@ -159,6 +159,9 @@ python run_spherical_panda_drake_example.py
 - Python 3.10
 - CUDA-capable GPU (recommended, for acceleration)
 
+## Baselines
+Special thanks to
+
 ## Citation
 
 If you use MorphIt in your research, please cite our paper:
@@ -174,6 +177,28 @@ If you use MorphIt in your research, please cite our paper:
       url={https://arxiv.org/abs/2507.14061},
 }
 ```
+
+## Acknowledgments
+
+To test our work, we have used several outstanding open-source robotics libraries and tools that have significantly accelerated research and development in robot motion planning, dynamics, and geometry approximation. We gratefully acknowledge the contributions of the following projects:
+
+### Motion Planning and Control
+
+- **[cuRobo (NVlabs)](https://github.com/NVlabs/curobo)** – A CUDA-accelerated robotics library providing high-performance motion generation, collision-free trajectory optimization, and inverse kinematics that operates within milliseconds on NVIDIA GPUs.
+
+- **[Drake (Robot Locomotion Group, MIT/Toyota Research Institute)](https://github.com/RobotLocomotion/drake)** – A comprehensive C++/Python toolbox for model-based design, multibody dynamics simulation, and optimization-based control systems analysis.
+
+- **[IDTO (Toyota Research Institute)](https://github.com/ToyotaResearchInstitute/idto)** – Inverse Dynamics Trajectory Optimization implementation for contact-implicit model predictive control, enabling real-time robotic manipulation and locomotion planning.
+
+### Geometric Approximation and Collision Detection
+
+- **[sphere-set-approximation](https://github.com/CK1201/sphere-set-approximation)** and its **[parent repository](https://github.com/111116/sphere-set-approximation)** – Algorithms for approximating triangular meshes with minimal-volume sphere sets, useful for efficient collision detection and shape representation.
+
+- **[spheretree (mlund)](https://github.com/mlund/spheretree)** – A sphere-tree construction toolkit for generating hierarchical sphere representations of polygonal models to accelerate interruptible collision detection.
+
+- **[foam (CoMMA Lab, Purdue University)](https://github.com/CoMMALab/foam)** – A specialized tool for spherical approximation of robot geometry, enabling fast proximity queries and motion planning for complex articulated systems.
+
+
 
 ## License
 
