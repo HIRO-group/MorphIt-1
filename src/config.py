@@ -148,15 +148,15 @@ LOSS_WEIGHT_CONFIGS = {
         "inertia_weight": 1.0,
     },
     "MorphIt-B": {
-        "coverage_weight": 1.0,
-        "overlap_weight": 0.01,
+        "coverage_weight": 10.0,
+        "overlap_weight": 1.0,
         "boundary_weight": 100.0,
         "surface_weight": 100.0,
         "containment_weight": 1.0,
         "sqem_weight": 100.0,
-        "mass_weight": 500.0,
-        "com_weight": 10.0,
-        "inertia_weight": 100.0,
+        "mass_weight": 100.0,
+        "com_weight": 100.0,
+        "inertia_weight": 500.0,
     },
 }
 

@@ -67,6 +67,7 @@ class MorphIt(nn.Module):
         self.mesh_mass = self.query_mesh.volume  # assuming density=1
         print(f"Mesh volume: {self.mesh_volume:.4f}")
         print(f"Mesh mass (density=1): {self.mesh_mass:.4f}")
+
         self.mesh_com = torch.tensor(
             self.query_mesh.center_mass, dtype=torch.float32, device=self.device
         )
