@@ -1,12 +1,12 @@
 import trimesh
 
 # Box dimensions [width, depth, height]
-box_size = [0.5, 0.5, 0.5]
+box_size = [0.05, 0.05, 0.05]
 
 # Create the box
 mesh = trimesh.creation.box(extents=box_size)
 
-rho = 1.0  # or whatever density you want
+rho = 4.0  # or whatever density you want
 mesh.apply_translation(-mesh.center_mass)  # move COM to (0,0,0)
 
 

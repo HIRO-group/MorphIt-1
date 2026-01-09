@@ -22,7 +22,7 @@ class ModelConfig:
     num_surface_samples: int = 10000  # Points on mesh surface for surface loss
 
     initialization_method: str = "volume"  # "volume", "grid", or "medial"
-    grid_resolution: int = 4  # for grid initialization
+    grid_resolution: int = 3  # for grid initialization
     medial_voxel_divisor: float = 2.0  # voxel_size = mesh.scale / this value
     medial_angle_threshold: float = 0.6
 
@@ -59,6 +59,7 @@ class TrainingConfig:
     mass_weight: float = 1.0
     com_weight: float = 1.0
     inertia_weight: float = 1.0
+    flatness_weight: float = 50.0
 
     # Early stopping parameters
     early_stopping: bool = False
@@ -135,6 +136,7 @@ LOSS_WEIGHT_CONFIGS = {
         "mass_weight": 1.0,
         "com_weight": 1.0,
         "inertia_weight": 1.0,
+        "flatness_weight": 500.0,
     },
     "MorphIt-S": {
         "coverage_weight": 0.01,
@@ -146,17 +148,19 @@ LOSS_WEIGHT_CONFIGS = {
         "mass_weight": 1.0,
         "com_weight": 1.0,
         "inertia_weight": 1.0,
+        "flatness_weight": 500.0,
     },
     "MorphIt-B": {
-        "coverage_weight": 10.0,
-        "overlap_weight": 1.0,
+        "coverage_weight": 100.0,
+        "overlap_weight": 10.0,
         "boundary_weight": 100.0,
-        "surface_weight": 100.0,
-        "containment_weight": 1.0,
-        "sqem_weight": 100.0,
+        "surface_weight": 200.0,
+        "containment_weight": 100.0,
+        "sqem_weight": 300.0,
         "mass_weight": 100.0,
         "com_weight": 100.0,
-        "inertia_weight": 500.0,
+        "inertia_weight": 100.0,
+        "flatness_weight": 500.0,
     },
 }
 

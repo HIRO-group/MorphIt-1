@@ -38,16 +38,16 @@ def main():
 
     # BOX
     config_updates = {
-        "model.num_spheres": 48,
+        "model.num_spheres": 27,
         "model.mesh_path": "../mesh_models/box.obj",
         # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
         # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
         # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
         "model.initialization_method": "grid",
-        "model.radius_threshold": 0.01,
-        "model.coverage_threshold": 0.001,
+        "model.radius_threshold": 0.0001,
+        "model.coverage_threshold": 0.0001,
         "training.early_stopping": False,
-        "training.iterations": 1000,
+        "training.iterations": 500,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
         "training.density_control_min_interval": 200,

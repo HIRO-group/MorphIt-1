@@ -135,6 +135,119 @@ class MorphItLosses:
 
         return inside_to_centers, surface_to_centers, center_pairwise
 
+    def _compute_flatness_loss(self, surface_dists: torch.Tensor) -> torch.Tensor:
+        """
+        Encourage spheres near flat surfaces to create a flat effective boundary.
+        Uses actual mesh face normals, not assumed axes.
+        """
+        centers = self.model.centers
+        radii = self.model.radii
+        normals = self.model.surface_normals  # [num_surface, 3]
+        samples = self.model.surface_samples  # [num_surface, 3]
+
+        # Cluster surface samples by normal direction to find flat faces
+        face_groups = self._cluster_surface_by_normal(
+            normals, samples, angle_threshold=0.1
+        )
+
+        total_flatness_loss = torch.tensor(0.0, device=self.device)
+
+        for face_normal, face_samples in face_groups:
+            if len(face_samples) < 10:
+                continue
+
+            # Compute the plane equation for this face
+            # Plane: dot(p - face_point, face_normal) = 0
+            face_point = face_samples.mean(dim=0)
+
+            # Signed distance from each sphere center to the face plane
+            # Positive = same side as normal, negative = opposite side
+            center_to_plane = torch.sum((centers - face_point) * face_normal, dim=1)
+
+            # Find spheres that are "near" this face (could be touching it)
+            # A sphere touches the face if |center_to_plane| < radius + margin
+            margin = radii.mean() * 0.5
+            near_face_mask = torch.abs(center_to_plane) < (radii + margin)
+
+            if near_face_mask.sum() < 2:
+                continue
+
+            near_centers = centers[near_face_mask]
+            near_radii = radii[near_face_mask]
+            near_plane_dist = center_to_plane[near_face_mask]
+
+            # The "effective surface" where each sphere meets the face plane
+            # If sphere is on positive side: effective_surface = center_dist - radius
+            # If sphere is on negative side: effective_surface = center_dist + radius
+            # We want these to be equal (all spheres touch the same plane)
+
+            effective_surface = torch.abs(near_plane_dist) - near_radii
+
+            # Penalize variance in effective surface position
+            # All spheres near this face should have same effective surface distance
+            if len(effective_surface) > 1:
+                flatness_loss = torch.var(effective_surface)
+                total_flatness_loss = total_flatness_loss + flatness_loss
+
+        return total_flatness_loss
+
+    def _cluster_surface_by_normal(self, normals, samples, angle_threshold=0.1):
+        """
+        Cluster surface samples by their normal direction.
+        Returns list of (representative_normal, samples_tensor) for each flat region.
+
+        angle_threshold: normals within this angle (radians) are considered same face
+        """
+        # Use cosine similarity: cos(angle_threshold) ≈ 1 - angle_threshold^2/2 for small angles
+        cos_threshold = np.cos(angle_threshold)
+
+        normals_np = normals.detach().cpu().numpy()
+        samples_np = samples.detach().cpu().numpy()
+
+        n = len(normals_np)
+        assigned = np.zeros(n, dtype=bool)
+        face_groups = []
+
+        for i in range(n):
+            if assigned[i]:
+                continue
+
+            # Find all samples with similar normal
+            ref_normal = normals_np[i]
+            similarities = np.abs(
+                normals_np @ ref_normal
+            )  # abs because n and -n are same plane
+            similar_mask = (similarities > cos_threshold) & (~assigned)
+
+            if similar_mask.sum() < 10:  # Skip small clusters
+                assigned[i] = True
+                continue
+
+            # Mark as assigned
+            assigned[similar_mask] = True
+
+            # Compute representative normal (average of cluster)
+            cluster_normals = normals_np[similar_mask]
+            # Flip normals to same hemisphere before averaging
+            signs = np.sign(cluster_normals @ ref_normal)
+            aligned_normals = cluster_normals * signs[:, np.newaxis]
+            rep_normal = aligned_normals.mean(axis=0)
+            rep_normal = rep_normal / np.linalg.norm(rep_normal)
+
+            # Get samples
+            cluster_samples = samples_np[similar_mask]
+
+            face_groups.append(
+                (
+                    torch.tensor(rep_normal, dtype=torch.float32, device=self.device),
+                    torch.tensor(
+                        cluster_samples, dtype=torch.float32, device=self.device
+                    ),
+                )
+            )
+
+        return face_groups
+
     def compute_all_losses(self) -> Dict[str, torch.Tensor]:
         """
         Compute all loss components efficiently using pre-computed distances.
@@ -152,6 +265,7 @@ class MorphItLosses:
             "mass_loss": self._compute_mass_loss(),
             "com_loss": self._compute_com_loss(),
             "inertia_loss": self._compute_inertia_loss(),
+            "flatness_loss": self._compute_flatness_loss(surface_dists),
         }
 
         return losses
@@ -195,4 +309,5 @@ class MorphItLosses:
             "mass_loss": config.mass_weight,
             "com_loss": config.com_weight,
             "inertia_loss": config.inertia_weight,
+            "flatness_loss": config.flatness_weight,
         }

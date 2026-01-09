@@ -174,7 +174,6 @@ class DensityController:
         Criteria:
         1. Small radius
         2. Center outside mesh
-        3. Deep inside volume (far from surface) and redundant
 
         Args:
             radius_threshold: Minimum radius threshold
@@ -198,17 +197,13 @@ class DensityController:
                 dtype=torch.bool,
             )
 
-            # Criterion 3: Redundancy score (deep + covered by neighbors)
-            redundancy_mask = self._compute_redundancy_mask(centers, radii)
-
             # Combine criteria
-            prune_mask = small_radius_mask | outside_mesh_mask | redundancy_mask
+            prune_mask = small_radius_mask | outside_mesh_mask
             spheres_to_remove = prune_mask.sum().item()
 
             print(f"Spheres to prune: {spheres_to_remove}")
             print(f"  - Small radius: {small_radius_mask.sum().item()}")
             print(f"  - Center outside mesh: {outside_mesh_mask.sum().item()}")
-            print(f"  - Redundant (deep + covered): {redundancy_mask.sum().item()}")
 
             if spheres_to_remove > 0:
                 valid_indices = ~prune_mask
@@ -217,74 +212,6 @@ class DensityController:
                 print(f"After pruning: {len(self.model._radii)} spheres remaining")
 
             return spheres_to_remove
-
-    def _compute_redundancy_mask(
-        self,
-        centers: torch.Tensor,
-        radii: torch.Tensor,
-        surface_weight: float = 0.7,
-        coverage_weight: float = 0.3,
-        prune_fraction: float = 0.1,
-    ) -> torch.Tensor:
-        """
-        Identify redundant spheres that can be removed.
-
-        Spheres are considered redundant if they are:
-        - Far from the surface (deep inside the volume)
-        - Well covered by neighboring spheres
-
-        Args:
-            centers: Sphere centers
-            radii: Sphere radii
-            surface_weight: Weight for surface distance in score
-            coverage_weight: Weight for neighbor coverage in score
-            prune_fraction: Fraction of spheres to mark as redundant
-
-        Returns:
-            Boolean mask of spheres to prune
-        """
-        num_spheres = len(radii)
-        if num_spheres <= self.config.model.num_spheres:
-            return torch.zeros(num_spheres, dtype=torch.bool, device=self.device)
-
-        # Distance from each sphere center to mesh surface
-        surface_dists = torch.norm(
-            self.model.surface_samples.unsqueeze(1) - centers.unsqueeze(0), dim=2
-        ).min(dim=0)[0]
-
-        # Normalize to [0, 1] - higher = farther from surface = more redundant
-        surface_score = (surface_dists - surface_dists.min()) / (
-            surface_dists.max() - surface_dists.min() + 1e-8
-        )
-
-        # Coverage by neighbors: how much is each sphere overlapped by others
-        pairwise_dists = torch.norm(centers.unsqueeze(1) - centers.unsqueeze(0), dim=2)
-        pairwise_dists += torch.eye(num_spheres, device=self.device) * 1e6  # mask self
-
-        # For each sphere, find how many neighbors overlap it significantly
-        radii_sum = radii.unsqueeze(1) + radii.unsqueeze(0)
-        overlap_depth = torch.relu(radii_sum - pairwise_dists)
-        coverage_score = overlap_depth.sum(dim=1) / (radii + 1e-8)
-
-        # Normalize coverage score
-        coverage_score = (coverage_score - coverage_score.min()) / (
-            coverage_score.max() - coverage_score.min() + 1e-8
-        )
-
-        # Combined redundancy score: high = more redundant
-        redundancy_score = (
-            surface_weight * surface_score + coverage_weight * coverage_score
-        )
-
-        # Mark top fraction as redundant
-        num_to_prune = max(0, num_spheres - self.config.model.num_spheres)
-        if num_to_prune == 0:
-            return torch.zeros(num_spheres, dtype=torch.bool, device=self.device)
-
-        threshold = torch.topk(redundancy_score, num_to_prune).values[-1]
-        redundancy_mask = redundancy_score >= threshold
-
-        return redundancy_mask
 
     def _add_spheres_to_poor_coverage(
         self, coverage_threshold: float, max_spheres: int
