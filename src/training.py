@@ -156,6 +156,7 @@ class MorphItTrainer:
         weighted_losses = {}
         for loss_name, loss_value in losses.items():
             if loss_name in loss_weights:
+
                 weight = loss_weights[loss_name]
                 weighted_loss = weight * loss_value
                 total_loss += weighted_loss

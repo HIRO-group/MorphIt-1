@@ -17,7 +17,7 @@ class ModelConfig:
 
     # Sphere initialization parameters
     # Controls size variation (log-normal sigma)
-    initial_radius_variation: float = 0.4
+    initial_radius_variation: float = 0.1
     num_inside_samples: int = 10000  # Points inside mesh for coverage computation
     num_surface_samples: int = 10000  # Points on mesh surface for surface loss
 
@@ -45,8 +45,8 @@ class TrainingConfig:
     logging_enabled: bool = False
 
     # Optimizer parameters
-    center_lr: float = 0.001
-    radius_lr: float = 0.001
+    center_lr: float = 0.0001
+    radius_lr: float = 0.0001
     grad_clip_norm: float = 1.0
 
     # Loss weights - MorphIt-B configuration
@@ -151,16 +151,16 @@ LOSS_WEIGHT_CONFIGS = {
         "flatness_weight": 500.0,
     },
     "MorphIt-B": {
-        "coverage_weight": 100.0,
-        "overlap_weight": 10.0,
-        "boundary_weight": 100.0,
-        "surface_weight": 200.0,
-        "containment_weight": 100.0,
-        "sqem_weight": 300.0,
-        "mass_weight": 100.0,
-        "com_weight": 100.0,
+        "coverage_weight": 10.0,
+        "overlap_weight": 2.0,
+        "boundary_weight": 150.0,
+        "surface_weight": 50.0,
+        "containment_weight": 1.0,
+        "sqem_weight": 150.0,
+        "mass_weight": 50.0,
+        "com_weight": 50.0,
         "inertia_weight": 100.0,
-        "flatness_weight": 500.0,
+        "flatness_weight": 150.0,
     },
 }
 

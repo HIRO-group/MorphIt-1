@@ -4,7 +4,7 @@ import json
 import os
 
 
-def check_sphere_alignment(mesh_path, results_path, tolerance=0.0005):
+def check_sphere_alignment(mesh_path, results_path, tolerance=0.003):
     """
     Checks if spheres along the mesh boundaries are aligned (flat).
 

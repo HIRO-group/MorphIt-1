@@ -43,14 +43,14 @@ def main():
         # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
         # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
         # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
-        "model.initialization_method": "grid",
+        "model.initialization_method": "volume",  # grid, volume
         "model.radius_threshold": 0.0001,
         "model.coverage_threshold": 0.0001,
         "training.early_stopping": False,
         "training.iterations": 500,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 200,
+        "training.density_control_min_interval": 260,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,

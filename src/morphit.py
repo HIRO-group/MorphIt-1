@@ -106,29 +106,54 @@ class MorphIt(nn.Module):
         self._print_initialization_stats(self._radii)
 
     def _sample_centers_inside_mesh(self, num_spheres: int) -> torch.Tensor:
-        """Sample sphere centers inside the mesh volume."""
-        # Request more points than needed for efficiency
-        points_to_request = num_spheres * 2
+        """Sample sphere centers biased toward interior."""
+        # Sample extra points
         sample_points = trimesh.sample.volume_mesh(
-            self.query_mesh, count=points_to_request
+            self.query_mesh, count=num_spheres * 5
         )
 
-        # Take only what we need
-        center_points = sample_points[:num_spheres]
+        # Compute distance from surface
+        from trimesh.proximity import closest_point
 
-        # If we don't have enough, sample more
-        if len(center_points) < num_spheres:
-            remaining = num_spheres - len(center_points)
-            while len(center_points) < num_spheres:
-                more_points = trimesh.sample.volume_mesh(
-                    self.query_mesh, count=remaining * 2
-                )
-                center_points = np.vstack([center_points, more_points])
-                if len(center_points) >= num_spheres:
-                    center_points = center_points[:num_spheres]
-                    break
+        _, distances, _ = closest_point(self.query_mesh, sample_points)
 
-        return torch.tensor(center_points, dtype=torch.float32, device=self.device)
+        # Weight by distance^2 (interior points more likely)
+        weights = distances**2.0  # Change to 3.0 or 4.0 for stronger bias
+        weights = weights / weights.sum()
+
+        # Select based on weights
+        selected = np.random.choice(
+            len(sample_points), size=num_spheres, replace=False, p=weights
+        )
+
+        return torch.tensor(
+            sample_points[selected], dtype=torch.float32, device=self.device
+        )
+
+    # def _sample_centers_inside_mesh(self, num_spheres: int) -> torch.Tensor:
+    #     """Sample sphere centers inside the mesh volume."""
+    #     # Request more points than needed for efficiency
+    #     points_to_request = num_spheres * 2
+    #     sample_points = trimesh.sample.volume_mesh(
+    #         self.query_mesh, count=points_to_request
+    #     )
+
+    #     # Take only what we need
+    #     center_points = sample_points[:num_spheres]
+
+    #     # If we don't have enough, sample more
+    #     if len(center_points) < num_spheres:
+    #         remaining = num_spheres - len(center_points)
+    #         while len(center_points) < num_spheres:
+    #             more_points = trimesh.sample.volume_mesh(
+    #                 self.query_mesh, count=remaining * 2
+    #             )
+    #             center_points = np.vstack([center_points, more_points])
+    #             if len(center_points) >= num_spheres:
+    #                 center_points = center_points[:num_spheres]
+    #                 break
+
+    #     return torch.tensor(center_points, dtype=torch.float32, device=self.device)
 
     def _initialize_radii_with_variation(self, num_spheres: int) -> torch.Tensor:
         """Initialize radii with non-uniform distribution preserving target volume."""
@@ -159,9 +184,9 @@ class MorphIt(nn.Module):
         bounds = self.query_mesh.bounds
 
         # Create grid points
-        x = np.linspace(bounds[0, 0], bounds[1, 0], resolution)
-        y = np.linspace(bounds[0, 1], bounds[1, 1], resolution)
-        z = np.linspace(bounds[0, 2], bounds[1, 2], resolution)
+        x = np.linspace(bounds[0, 0] * 0.8, bounds[1, 0] * 0.8, resolution)
+        y = np.linspace(bounds[0, 1] * 0.8, bounds[1, 1] * 0.8, resolution)
+        z = np.linspace(bounds[0, 2] * 0.8, bounds[1, 2] * 0.8, resolution)
 
         grid_points = np.array(np.meshgrid(x, y, z)).T.reshape(-1, 3)
 

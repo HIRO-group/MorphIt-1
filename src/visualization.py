@@ -19,7 +19,7 @@ def visualize_packing(
     sample_point_color: str = "red",
     surface_point_color: str = "green",
     sphere_color: str = "blue",
-    sphere_opacity: float = 0.3,
+    sphere_opacity: float = 0.9,
     point_size: int = 5,
     mesh_color: str = "white",
     mesh_line_width: float = 1.5,
@@ -80,8 +80,7 @@ def visualize_packing(
         )
 
     # Add spheres
-    _add_spheres_to_plotter(plotter, centers, radii,
-                            sphere_color, sphere_opacity)
+    _add_spheres_to_plotter(plotter, centers, radii, sphere_color, sphere_opacity)
 
     # Add sample points if requested
     if show_sample_points and hasattr(model, "inside_samples"):

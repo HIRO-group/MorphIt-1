@@ -166,7 +166,7 @@ class MorphItLosses:
 
             # Find spheres that are "near" this face (could be touching it)
             # A sphere touches the face if |center_to_plane| < radius + margin
-            margin = radii.mean() * 0.5
+            margin = radii.mean() * 0.008
             near_face_mask = torch.abs(center_to_plane) < (radii + margin)
 
             if near_face_mask.sum() < 2:
