@@ -64,15 +64,22 @@ class MorphIt(nn.Module):
         self.query_mesh = trimesh.load(self.mesh_path, force="mesh")
         self.mesh_volume = self.query_mesh.volume
 
-        self.mesh_mass = self.query_mesh.volume  # assuming density=1
-        print(f"Mesh volume: {self.mesh_volume:.4f}")
-        print(f"Mesh mass (density=1): {self.mesh_mass:.4f}")
+        print(f"Trimesh moment_inertia (raw): {self.query_mesh.moment_inertia}")
 
         self.mesh_com = torch.tensor(
             self.query_mesh.center_mass, dtype=torch.float32, device=self.device
         )
+        self.density = self.config.model.density
+
+        print(
+            f"After scaling by density ({self.density}): {self.query_mesh.moment_inertia * self.density}"
+        )
+
+        self.mesh_mass = self.query_mesh.volume * self.density
         self.mesh_inertia = torch.tensor(
-            self.query_mesh.moment_inertia, dtype=torch.float32, device=self.device
+            self.query_mesh.moment_inertia * self.density,
+            dtype=torch.float32,
+            device=self.device,
         )
 
         print(f"Mesh volume: {self.mesh_volume:.4f}")

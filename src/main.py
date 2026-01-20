@@ -10,24 +10,6 @@ from visualization import visualize_packing
 import numpy as np
 import trimesh
 
-mesh = trimesh.load("../mesh_models/bunny2.obj", force="mesh")
-
-print("=== Mesh Diagnostics ===")
-print(f"Is watertight: {mesh.is_watertight}")
-print(f"Is volume valid: {mesh.is_volume}")
-print(f"Is winding consistent: {mesh.is_winding_consistent}")
-print(f"Euler number: {mesh.euler_number}")  # Should be 2 for closed mesh
-print(f"Number of bodies: {len(mesh.split())}")  # Should be 1
-print(
-    f"Has degenerate faces: {mesh.is_degenerate.any() if hasattr(mesh, 'is_degenerate') else 'N/A'}"
-)
-
-# Check for holes
-edges = mesh.edges_sorted
-edges_unique, counts = np.unique(edges, axis=0, return_counts=True)
-boundary_edges = edges_unique[counts == 1]
-print(f"Boundary edges (holes): {len(boundary_edges)}")
-
 
 def main():
     print("=== Hello, I'm MorphIt ===")
@@ -43,7 +25,7 @@ def main():
         # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
         # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
         # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
-        "model.initialization_method": "volume",  # grid, volume
+        "model.initialization_method": "grid",  # grid, volume
         "model.radius_threshold": 0.0001,
         "model.coverage_threshold": 0.0001,
         "training.early_stopping": False,
