@@ -165,7 +165,8 @@ class MorphIt(nn.Module):
         variation = self.config.model.initial_radius_variation
         log_normal_samples = (
             torch.from_numpy(
-                np.random.lognormal(mean=0.0, sigma=variation, size=num_spheres)
+                np.random.lognormal(
+                    mean=0.0, sigma=variation, size=num_spheres)
             )
             .float()
             .to(self.device)
@@ -184,20 +185,22 @@ class MorphIt(nn.Module):
         bounds = self.query_mesh.bounds
 
         # Create grid points
-        x = np.linspace(bounds[0, 0] * 0.8, bounds[1, 0] * 0.8, resolution)
-        y = np.linspace(bounds[0, 1] * 0.8, bounds[1, 1] * 0.8, resolution)
-        z = np.linspace(bounds[0, 2] * 0.8, bounds[1, 2] * 0.8, resolution)
+        x = np.linspace(bounds[0, 0] * 0.99, bounds[1, 0] * 0.99, resolution)
+        y = np.linspace(bounds[0, 1] * 0.99, bounds[1, 1] * 0.99, resolution)
+        z = np.linspace(bounds[0, 2] * 0.99, bounds[1, 2] * 0.99, resolution)
 
         grid_points = np.array(np.meshgrid(x, y, z)).T.reshape(-1, 3)
 
         # Keep only points inside mesh
         inside = check_mesh_contains(self.query_mesh, grid_points)
-        centers = grid_points  # [inside]
+        centers = grid_points[inside]
 
-        centers = torch.tensor(centers, dtype=torch.float32, device=self.device)
+        centers = torch.tensor(
+            centers, dtype=torch.float32, device=self.device)
 
         # Uniform radius based on mesh volume and sphere count
-        target_radius = (3 * self.mesh_volume / (4 * np.pi * len(centers))) ** (1 / 3)
+        target_radius = (3 * self.mesh_volume /
+                         (4 * np.pi * len(centers))) ** (1 / 3)
         radii = torch.full(
             (len(centers),), target_radius, dtype=torch.float32, device=self.device
         )
@@ -215,10 +218,12 @@ class MorphIt(nn.Module):
             verbose=True,
         )
 
-        centers = torch.tensor(result.centers, dtype=torch.float32, device=self.device)
+        centers = torch.tensor(
+            result.centers, dtype=torch.float32, device=self.device)
 
         # Uniform radius based on mesh volume and sphere count
-        target_radius = (3 * self.mesh_volume / (4 * np.pi * len(centers))) ** (1 / 3)
+        target_radius = (3 * self.mesh_volume /
+                         (4 * np.pi * len(centers))) ** (1 / 3)
         radii = torch.full(
             (len(centers),), target_radius, dtype=torch.float32, device=self.device
         )
@@ -286,7 +291,8 @@ class MorphIt(nn.Module):
         num_samples = self.config.model.num_surface_samples
 
         # Sample points on mesh surface
-        samples, face_ids = trimesh.sample.sample_surface(self.query_mesh, num_samples)
+        samples, face_ids = trimesh.sample.sample_surface(
+            self.query_mesh, num_samples)
 
         # Convert to tensors
         self.surface_samples = torch.tensor(

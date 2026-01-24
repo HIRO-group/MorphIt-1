@@ -76,7 +76,8 @@ def create_pyvista_mesh(trimesh_mesh):
 def create_sphere_multiblock(centers, radii, max_spheres=None):
     """Create PyVista MultiBlock of spheres."""
     if max_spheres is not None and len(centers) > max_spheres:
-        print(f"Warning: Too many spheres ({len(centers)}), showing only {max_spheres}")
+        print(
+            f"Warning: Too many spheres ({len(centers)}), showing only {max_spheres}")
         # Sort by radius (largest first) for better visualization
         sort_idx = np.argsort(-radii)[:max_spheres]
         centers = centers[sort_idx]
@@ -92,6 +93,9 @@ def create_sphere_multiblock(centers, radii, max_spheres=None):
         sphere = pv.Sphere(
             radius=radius, center=center, theta_resolution=16, phi_resolution=16
         )
+        color_value = np.random.rand()  # Random color value
+        # Fill all points with same color
+        sphere['color'] = np.full(sphere.n_points, color_value)
         spheres.append(sphere)
 
     print(f"Created {len(spheres)} spheres")
@@ -146,10 +150,11 @@ def visualize_packing(centers, radii, mesh=None, config=None):
             )
 
     # Add spheres
-    spheres = create_sphere_multiblock(centers, radii, default_config["max_spheres"])
+    spheres = create_sphere_multiblock(
+        centers, radii, default_config["max_spheres"])
     plotter.add_mesh(
         spheres,
-        color=default_config["sphere_color"],
+        cmap='rainbow',  # Use colormap instead of single color
         opacity=default_config["sphere_opacity"],
         label="Spheres",
     )
@@ -217,8 +222,10 @@ def print_statistics(centers, radii):
 
 def main():
     """Main function."""
-    parser = argparse.ArgumentParser(description="Visualize sphere packing results")
-    parser.add_argument("json_file", nargs="?", help="Path to JSON results file")
+    parser = argparse.ArgumentParser(
+        description="Visualize sphere packing results")
+    parser.add_argument("json_file", nargs="?",
+                        help="Path to JSON results file")
     parser.add_argument(
         "--no-mesh", action="store_true", help="Skip mesh visualization"
     )
@@ -236,7 +243,8 @@ def main():
     parser.add_argument(
         "--stats-only", action="store_true", help="Only print statistics"
     )
-    parser.add_argument("--show-axes", action="store_true", help="Show coordinate axes")
+    parser.add_argument("--show-axes", action="store_true",
+                        help="Show coordinate axes")
 
     args = parser.parse_args()
 

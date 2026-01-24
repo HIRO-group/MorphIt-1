@@ -10,24 +10,6 @@ from visualization import visualize_packing
 import numpy as np
 import trimesh
 
-mesh = trimesh.load("../mesh_models/bunny2.obj", force="mesh")
-
-print("=== Mesh Diagnostics ===")
-print(f"Is watertight: {mesh.is_watertight}")
-print(f"Is volume valid: {mesh.is_volume}")
-print(f"Is winding consistent: {mesh.is_winding_consistent}")
-print(f"Euler number: {mesh.euler_number}")  # Should be 2 for closed mesh
-print(f"Number of bodies: {len(mesh.split())}")  # Should be 1
-print(
-    f"Has degenerate faces: {mesh.is_degenerate.any() if hasattr(mesh, 'is_degenerate') else 'N/A'}"
-)
-
-# Check for holes
-edges = mesh.edges_sorted
-edges_unique, counts = np.unique(edges, axis=0, return_counts=True)
-boundary_edges = edges_unique[counts == 1]
-print(f"Boundary edges (holes): {len(boundary_edges)}")
-
 
 def main():
     print("=== Hello, I'm MorphIt ===")
@@ -37,45 +19,47 @@ def main():
     config = get_config("MorphIt-B")
 
     # BOX
-    config_updates = {
-        "model.num_spheres": 27,
-        "model.mesh_path": "../mesh_models/box.obj",
-        # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
-        # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
-        # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
-        "model.initialization_method": "volume",  # grid, volume
-        "model.radius_threshold": 0.0001,
-        "model.coverage_threshold": 0.0001,
-        "training.early_stopping": False,
-        "training.iterations": 500,
-        "training.verbose_frequency": 10,
-        "training.logging_enabled": False,
-        "training.density_control_min_interval": 260,
-        "visualization.enabled": False,
-        "visualization.off_screen": False,
-        "visualization.save_video": False,
-        "visualization.video_filename": "morphit_evolution.mp4",
-    }
-
     # config_updates = {
-    #     "model.num_spheres": 100,
-    #     "model.mesh_path": "../mesh_models/bunny2.obj",
+    #     "model.num_spheres": 27,
+    #     "model.mesh_path": "../mesh_models/box.obj",
     #     # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
     #     # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
     #     # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
-    #     "model.initialization_method": "volume",
-    #     "model.radius_threshold": 0.001,
-    #     "model.coverage_threshold": 0.001,
+    #     "model.initialization_method": "volume",  # grid, volume
+    #     "model.radius_threshold": 0.0001,
+    #     "model.coverage_threshold": 0.0001,
     #     "training.early_stopping": False,
-    #     "training.iterations": 1000,
+    #     "training.iterations": 500,
     #     "training.verbose_frequency": 10,
     #     "training.logging_enabled": False,
-    #     "training.density_control_min_interval": 350,
+    #     "training.density_control_min_interval": 260,
     #     "visualization.enabled": False,
     #     "visualization.off_screen": False,
     #     "visualization.save_video": False,
     #     "visualization.video_filename": "morphit_evolution.mp4",
     # }
+
+    # BUNNY
+    config_updates = {
+        "model.num_spheres": 30,
+        "model.mesh_path": "../mesh_models/bunny.obj",
+        # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
+        # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
+        # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
+        "model.initialization_method": "medial",
+        "model.radius_threshold": 0.0001,
+        "model.coverage_threshold": 0.0001,
+        "training.early_stopping": False,
+        "training.iterations": 800,
+        "training.verbose_frequency": 10,
+        "training.logging_enabled": False,
+        "training.density_control_min_interval": 120,
+        "training.density_control_patience": 2,
+        "visualization.enabled": False,
+        "visualization.off_screen": False,
+        "visualization.save_video": False,
+        "visualization.video_filename": "morphit_evolution.mp4",
+    }
 
     config = update_config_from_dict(config, config_updates)
 

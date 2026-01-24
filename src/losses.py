@@ -34,7 +34,8 @@ class MorphItLosses:
         eye_mask = torch.eye(n, device=self.device)
         dists = pairwise_dists + eye_mask * 1000.0
 
-        radii_sum = self.model.radii.unsqueeze(1) + self.model.radii.unsqueeze(0)
+        radii_sum = self.model.radii.unsqueeze(
+            1) + self.model.radii.unsqueeze(0)
         overlap = torch.relu(radii_sum - dists)
         return torch.mean(overlap)
 
@@ -95,7 +96,8 @@ class MorphItLosses:
     def _compute_com_loss(self) -> torch.Tensor:
         sphere_masses = (4.0 / 3.0) * np.pi * (self.model.radii**3)
         total_mass = sphere_masses.sum()
-        com = (sphere_masses.unsqueeze(1) * self.model.centers).sum(dim=0) / total_mass
+        com = (sphere_masses.unsqueeze(1) *
+               self.model.centers).sum(dim=0) / total_mass
         return torch.sum((com - self.model.mesh_com) ** 2)
 
     def _compute_inertia_loss(self) -> torch.Tensor:
@@ -131,7 +133,8 @@ class MorphItLosses:
         )
 
         # Pairwise distances between sphere centers [num_spheres, num_spheres]
-        center_pairwise = torch.norm(centers.unsqueeze(1) - centers.unsqueeze(0), dim=2)
+        center_pairwise = torch.norm(
+            centers.unsqueeze(1) - centers.unsqueeze(0), dim=2)
 
         return inside_to_centers, surface_to_centers, center_pairwise
 
@@ -153,7 +156,8 @@ class MorphItLosses:
         total_flatness_loss = torch.tensor(0.0, device=self.device)
 
         for face_normal, face_samples in face_groups:
-            if len(face_samples) < 10:
+            # print(f"Processing face with {len(face_samples)} samples")
+            if len(face_samples) < 50:
                 continue
 
             # Compute the plane equation for this face
@@ -162,11 +166,12 @@ class MorphItLosses:
 
             # Signed distance from each sphere center to the face plane
             # Positive = same side as normal, negative = opposite side
-            center_to_plane = torch.sum((centers - face_point) * face_normal, dim=1)
+            center_to_plane = torch.sum(
+                (centers - face_point) * face_normal, dim=1)
 
             # Find spheres that are "near" this face (could be touching it)
             # A sphere touches the face if |center_to_plane| < radius + margin
-            margin = radii.mean() * 0.008
+            margin = radii.mean() * 0.01
             near_face_mask = torch.abs(center_to_plane) < (radii + margin)
 
             if near_face_mask.sum() < 2:
@@ -185,8 +190,14 @@ class MorphItLosses:
 
             # Penalize variance in effective surface position
             # All spheres near this face should have same effective surface distance
+            # if len(effective_surface) > 1:
+            #     flatness_loss = torch.var(effective_surface)
+            #     total_flatness_loss = total_flatness_loss + flatness_loss
+
             if len(effective_surface) > 1:
-                flatness_loss = torch.var(effective_surface)
+                # Weight by surface area
+                area_weight = len(face_samples) / len(samples)
+                flatness_loss = torch.var(effective_surface) * area_weight
                 total_flatness_loss = total_flatness_loss + flatness_loss
 
         return total_flatness_loss
@@ -219,7 +230,7 @@ class MorphItLosses:
             )  # abs because n and -n are same plane
             similar_mask = (similarities > cos_threshold) & (~assigned)
 
-            if similar_mask.sum() < 10:  # Skip small clusters
+            if similar_mask.sum() < 50:  # Skip small clusters
                 assigned[i] = True
                 continue
 
@@ -239,7 +250,8 @@ class MorphItLosses:
 
             face_groups.append(
                 (
-                    torch.tensor(rep_normal, dtype=torch.float32, device=self.device),
+                    torch.tensor(rep_normal, dtype=torch.float32,
+                                 device=self.device),
                     torch.tensor(
                         cluster_samples, dtype=torch.float32, device=self.device
                     ),

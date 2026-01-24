@@ -127,7 +127,8 @@ class MeshProximityQuery:
         """
         self.mesh = mesh
         self._proximity = trimesh.proximity.ProximityQuery(mesh)
-        logger.debug(f"Initialized MeshProximityQuery with {len(mesh.faces)} faces")
+        logger.debug(
+            f"Initialized MeshProximityQuery with {len(mesh.faces)} faces")
 
     def nearest_point(
         self, points: np.ndarray
@@ -147,7 +148,8 @@ class MeshProximityQuery:
                 - triangle_ids: IDs of triangles containing nearest points, shape (N,)
         """
         points = np.atleast_2d(points)
-        surface_points, distances, triangle_ids = self._proximity.on_surface(points)
+        surface_points, distances, triangle_ids = self._proximity.on_surface(
+            points)
         return surface_points, distances, triangle_ids
 
     def is_inside(self, points: np.ndarray) -> np.ndarray:
@@ -196,7 +198,8 @@ def compute_object_angle(m: np.ndarray, A: np.ndarray, B: np.ndarray) -> float:
     norm2 = np.linalg.norm(v2)
 
     if norm1 < 1e-12 or norm2 < 1e-12:
-        logger.debug("Degenerate object angle computation (zero-length vector)")
+        logger.debug(
+            "Degenerate object angle computation (zero-length vector)")
         return 0.0
 
     # Compute cosine of angle, clipped for numerical stability
@@ -324,7 +327,8 @@ def binary_search_medial_point(
         segment_length = np.linalg.norm(right - left)
 
         if segment_length < position_tol:
-            logger.debug(f"Binary search converged after {iteration} iterations")
+            logger.debug(
+                f"Binary search converged after {iteration} iterations")
             break
 
         # Midpoint
@@ -518,17 +522,20 @@ def compute_medial_spheres(
         best_radius = -np.inf
 
         # Sample points on circumscribed sphere S(voxel_center, circum_radius)
-        sample_points = voxel_center + circum_radius * sample_directions  # (K, 3)
+        sample_points = voxel_center + \
+            circum_radius * sample_directions  # (K, 3)
 
         # Batch query: find nearest boundary points for all samples at once
-        B_samples, distances_samples, _ = proximity.nearest_point(sample_points)
+        B_samples, distances_samples, _ = proximity.nearest_point(
+            sample_points)
 
         # Process each sample point
         for sample_idx, p in enumerate(sample_points):
             B_p = B_samples[sample_idx]  # Nearest boundary point to p
 
             # Compute opposite point q on sphere S along direction (p - B(p))
-            q = compute_opposite_point_on_sphere(p, B_p, voxel_center, circum_radius)
+            q = compute_opposite_point_on_sphere(
+                p, B_p, voxel_center, circum_radius)
 
             # Find nearest boundary point to q
             B_q_arr, _, _ = proximity.nearest_point(q.reshape(1, 3))
@@ -639,7 +646,8 @@ def create_sphere_mesh(
     Returns:
         trimesh.Trimesh representing the sphere
     """
-    sphere = trimesh.creation.icosphere(subdivisions=subdivisions, radius=radius)
+    sphere = trimesh.creation.icosphere(
+        subdivisions=subdivisions, radius=radius)
     sphere.apply_translation(center)
     return sphere
 
@@ -685,7 +693,8 @@ def visualize_medial_spheres(
             indices = np.argsort(radii)[-max_spheres_to_show:]
         else:
             # Random sample
-            indices = np.random.choice(num_spheres, max_spheres_to_show, replace=False)
+            indices = np.random.choice(
+                num_spheres, max_spheres_to_show, replace=False)
         logger.info(f"Showing {max_spheres_to_show} of {num_spheres} spheres")
     else:
         indices = np.arange(num_spheres)

@@ -51,7 +51,8 @@ class MorphItTrainer:
         """Create optimizer with configured learning rates."""
         return torch.optim.Adam(
             [
-                {"params": self.model._centers, "lr": self.config.training.center_lr},
+                {"params": self.model._centers,
+                    "lr": self.config.training.center_lr},
                 {"params": self.model._radii, "lr": self.config.training.radius_lr},
             ]
         )
@@ -78,7 +79,8 @@ class MorphItTrainer:
         """Setup rendering if PyVista is available."""
         if hasattr(self.model, "pl") and self.model.pl is not None:
             render_interval = self.config.visualization.render_interval
-            self.model.initialize_render_thread(render_interval=render_interval)
+            self.model.initialize_render_thread(
+                render_interval=render_interval)
 
     def train(self) -> ConvergenceTracker:
         """
@@ -94,9 +96,11 @@ class MorphItTrainer:
         self.setup_rendering()
 
         # Get loss weights
-        loss_weights = self.losses.get_loss_weights_from_config(self.config.training)
+        loss_weights = self.losses.get_loss_weights_from_config(
+            self.config.training)
 
         self.training_start_time = time.time()
+        # self.density_controller.prune_spheres()
         # Training loop
         for iteration in range(self.config.training.iterations):
             self.current_iteration = iteration
@@ -126,7 +130,8 @@ class MorphItTrainer:
             if (
                 self.config.training.logging_enabled and iteration % 1 == 0
             ):  # Log every iteration
-                self.evolution_logger.log_spheres(self.model, iteration, "training")
+                self.evolution_logger.log_spheres(
+                    self.model, iteration, "training")
 
         # Cleanup and finalize
         self._finalize_training()
@@ -305,7 +310,8 @@ class MorphItTrainer:
         self.density_controller.prune_spheres()
 
         # Log final state
-        self.evolution_logger.log_spheres(self.model, self.current_iteration, "final")
+        self.evolution_logger.log_spheres(
+            self.model, self.current_iteration, "final")
         self.evolution_logger.save_complete_evolution()
 
         # Print summary

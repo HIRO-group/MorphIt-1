@@ -28,7 +28,8 @@ def check_sphere_alignment(mesh_path, results_path, tolerance=0.003):
     face_normals = mesh.face_normals
     # Round normals to avoid float errors when finding unique directions
     rounded_normals = np.round(face_normals, decimals=3)
-    unique_normals, indices = np.unique(rounded_normals, axis=0, return_inverse=True)
+    unique_normals, indices = np.unique(
+        rounded_normals, axis=0, return_inverse=True)
 
     print(f"Detected {len(unique_normals)} distinct planar regions (sides).")
 
@@ -74,7 +75,8 @@ def check_sphere_alignment(mesh_path, results_path, tolerance=0.003):
 
         # Heuristic for "Bad" alignment
         if gap_range > 0.001:  # more than 5mm variance
-            print(f"  [WARNING] Uneven surface detected! Variance: {gap_variance:.8f}")
+            print(
+                f"  [WARNING] Uneven surface detected! Variance: {gap_variance:.8f}")
             issues_found = True
         else:
             print(f"  [OK] Surface is aligned.")
@@ -93,6 +95,7 @@ if __name__ == "__main__":
     RESULTS_FILE = "results/output/morphit_results.json"
 
     if os.path.exists(MESH_FILE) and os.path.exists(RESULTS_FILE):
-        check_sphere_alignment(MESH_FILE, RESULTS_FILE)
+        # check_sphere_alignment(MESH_FILE, RESULTS_FILE)
+        check_sphere_alignment(MESH_FILE, RESULTS_FILE, bottom_direction='-z')
     else:
         print("Please check your file paths in the script.")

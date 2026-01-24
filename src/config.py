@@ -18,12 +18,12 @@ class ModelConfig:
     # Sphere initialization parameters
     # Controls size variation (log-normal sigma)
     initial_radius_variation: float = 0.1
-    num_inside_samples: int = 10000  # Points inside mesh for coverage computation
-    num_surface_samples: int = 10000  # Points on mesh surface for surface loss
+    num_inside_samples: int = 8000  # Points inside mesh for coverage computation
+    num_surface_samples: int = 5000  # Points on mesh surface for surface loss
 
-    initialization_method: str = "volume"  # "volume", "grid", or "medial"
-    grid_resolution: int = 3  # for grid initialization
-    medial_voxel_divisor: float = 2.0  # voxel_size = mesh.scale / this value
+    initialization_method: str = "medial"  # "volume", "grid", or "medial"
+    grid_resolution: int = 5  # for grid initialization
+    medial_voxel_divisor: float = 6.0  # voxel_size = mesh.scale / this value
     medial_angle_threshold: float = 0.6
 
     # Density control parameters
@@ -152,15 +152,15 @@ LOSS_WEIGHT_CONFIGS = {
     },
     "MorphIt-B": {
         "coverage_weight": 10.0,
-        "overlap_weight": 2.0,
-        "boundary_weight": 150.0,
+        "overlap_weight": 1.0,
+        "boundary_weight": 250.0,
         "surface_weight": 50.0,
         "containment_weight": 1.0,
         "sqem_weight": 150.0,
-        "mass_weight": 50.0,
-        "com_weight": 50.0,
+        "mass_weight": 100.0,
+        "com_weight": 100.0,
         "inertia_weight": 100.0,
-        "flatness_weight": 150.0,
+        "flatness_weight": 100.0,
     },
 }
 
@@ -210,7 +210,8 @@ def update_config_from_dict(
                 if hasattr(section_config, param):
                     setattr(section_config, param, value)
                 else:
-                    raise ValueError(f"Unknown parameter: {param} in section {section}")
+                    raise ValueError(
+                        f"Unknown parameter: {param} in section {section}")
             else:
                 raise ValueError(f"Unknown section: {section}")
         else:
