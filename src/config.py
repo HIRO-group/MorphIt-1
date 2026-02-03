@@ -33,6 +33,8 @@ class ModelConfig:
     )
     max_spheres: int = num_spheres  # Maximum number of spheres allowed
 
+    density: float = 1000.0  # Material density (kg/m³)
+
 
 @dataclass
 class TrainingConfig:
@@ -157,10 +159,10 @@ LOSS_WEIGHT_CONFIGS = {
         "surface_weight": 50.0,
         "containment_weight": 1.0,
         "sqem_weight": 150.0,
-        "mass_weight": 100.0,
-        "com_weight": 100.0,
-        "inertia_weight": 100.0,
-        "flatness_weight": 100.0,
+        "mass_weight": 50.0,
+        "com_weight": 50.0,
+        "inertia_weight": 50.0,
+        "flatness_weight": 150.0,
     },
 }
 

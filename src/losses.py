@@ -89,12 +89,16 @@ class MorphItLosses:
         return torch.mean(closest_dist**2)
 
     def _compute_mass_loss(self) -> torch.Tensor:
-        sphere_masses = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        # Volume of each sphere
+        sphere_volumes = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        # Mass = density × volume
+        sphere_masses = self.model.config.model.density * sphere_volumes
         total_mass = sphere_masses.sum()
         return (total_mass - self.model.mesh_mass) ** 2
 
     def _compute_com_loss(self) -> torch.Tensor:
-        sphere_masses = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        sphere_volumes = (4.0 / 3.0) * np.pi * (self.model.radii**3)
+        sphere_masses = self.model.config.model.density * sphere_volumes
         total_mass = sphere_masses.sum()
         com = (sphere_masses.unsqueeze(1) *
                self.model.centers).sum(dim=0) / total_mass
@@ -103,7 +107,10 @@ class MorphItLosses:
     def _compute_inertia_loss(self) -> torch.Tensor:
         radii = self.model.radii
         centers = self.model.centers
-        m = (4.0 / 3.0) * np.pi * (radii**3)
+
+        # Compute masses from volumes
+        sphere_volumes = (4.0 / 3.0) * np.pi * (radii**3)
+        m = self.model.config.model.density * sphere_volumes  # Now it's actually mass!
 
         I = torch.zeros(3, 3, device=self.device)
         eye3 = torch.eye(3, device=self.device)
