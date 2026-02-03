@@ -25,7 +25,8 @@ class MorphItLosses:
         """Efficient coverage loss using pre-computed distances."""
         sphere_coverage = inside_dists - self.model.radii.unsqueeze(0)
         min_coverage = torch.min(sphere_coverage, dim=1)[0]
-        return torch.mean(torch.relu(min_coverage))
+        # torch.mean(torch.relu(min_coverage))
+        return torch.mean(torch.relu(min_coverage) ** 2)
 
     def _compute_overlap_penalty(self, pairwise_dists: torch.Tensor) -> torch.Tensor:
         """Efficient overlap penalty using pre-computed distances."""
@@ -37,7 +38,7 @@ class MorphItLosses:
         radii_sum = self.model.radii.unsqueeze(
             1) + self.model.radii.unsqueeze(0)
         overlap = torch.relu(radii_sum - dists)
-        return torch.mean(overlap)
+        return torch.mean(overlap ** 2)  # torch.mean(overlap)
 
     def _compute_boundary_penalty(self, surface_dists: torch.Tensor) -> torch.Tensor:
         """Efficient boundary penalty using pre-computed distances."""
@@ -48,7 +49,8 @@ class MorphItLosses:
         """Efficient surface loss using pre-computed distances."""
         sphere_coverage = surface_dists - self.model.radii.unsqueeze(0)
         closest_dists = torch.min(sphere_coverage, dim=1)[0]
-        return torch.mean(torch.abs(closest_dists))
+        # torch.mean(torch.abs(closest_dists))
+        return torch.mean(closest_dists ** 2)
 
     def _compute_containment_loss(self, pairwise_dists: torch.Tensor) -> torch.Tensor:
         """Efficient containment loss using pre-computed distances."""

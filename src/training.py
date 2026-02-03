@@ -100,7 +100,6 @@ class MorphItTrainer:
             self.config.training)
 
         self.training_start_time = time.time()
-        # self.density_controller.prune_spheres()
         # Training loop
         for iteration in range(self.config.training.iterations):
             self.current_iteration = iteration
@@ -307,7 +306,7 @@ class MorphItTrainer:
             self.model.stop_render_thread()
 
         # Final pruning
-        self.density_controller.prune_spheres()
+        # self.density_controller.prune_spheres()
 
         # Log final state
         self.evolution_logger.log_spheres(

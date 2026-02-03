@@ -1,0 +1,6 @@
+- only move the volume spheres when optimizing physical losses
+- this way we do not compromise the surface converage
+- need to classify volume and surface spheres but make it such that if we only need to use 10 spheres
+- to classify an object then we can still do that even if we classify the spheres
+- need to consider corners, these are not covered as well, or for bunny we see a lot of empty spaces
+- need to add surface more aggressively during density control potentially, we see only a small amount of movement

@@ -18,8 +18,8 @@ class ModelConfig:
     # Sphere initialization parameters
     # Controls size variation (log-normal sigma)
     initial_radius_variation: float = 0.1
-    num_inside_samples: int = 8000  # Points inside mesh for coverage computation
-    num_surface_samples: int = 5000  # Points on mesh surface for surface loss
+    num_inside_samples: int = 10000  # Points inside mesh for coverage computation
+    num_surface_samples: int = 10000  # Points on mesh surface for surface loss
 
     initialization_method: str = "medial"  # "volume", "grid", or "medial"
     grid_resolution: int = 5  # for grid initialization
@@ -27,10 +27,10 @@ class ModelConfig:
     medial_angle_threshold: float = 0.6
 
     # Density control parameters
-    radius_threshold: float = 0.005  # Threshold for pruning small spheres
-    coverage_threshold: float = (
-        0.01  # Threshold for adding spheres to poor coverage areas
-    )
+    # radius_threshold: float = 0.001  # UNUSED Threshold for pruning small spheres
+    # coverage_threshold: float = (
+    #     0.002  # UNUSED Threshold for adding spheres to poor coverage areas
+    # )
     max_spheres: int = num_spheres  # Maximum number of spheres allowed
 
     density: float = 1000.0  # Material density (kg/m³)
@@ -153,16 +153,16 @@ LOSS_WEIGHT_CONFIGS = {
         "flatness_weight": 500.0,
     },
     "MorphIt-B": {
-        "coverage_weight": 10.0,
+        "coverage_weight": 100.0,
         "overlap_weight": 1.0,
-        "boundary_weight": 250.0,
-        "surface_weight": 50.0,
-        "containment_weight": 1.0,
-        "sqem_weight": 150.0,
-        "mass_weight": 50.0,
-        "com_weight": 50.0,
-        "inertia_weight": 50.0,
-        "flatness_weight": 150.0,
+        "boundary_weight": 100.0,
+        "surface_weight": 100.0,
+        "containment_weight": 10.0,
+        "sqem_weight": 100.0,
+        "mass_weight": 100.0,
+        "com_weight": 100.0,
+        "inertia_weight": 100.0,
+        "flatness_weight": 0.0,
     },
 }
 
