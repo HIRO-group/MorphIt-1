@@ -18,8 +18,8 @@ class ModelConfig:
     # Sphere initialization parameters
     # Controls size variation (log-normal sigma)
     initial_radius_variation: float = 0.4
-    num_inside_samples: int = 5000  # Points inside mesh for coverage computation
-    num_surface_samples: int = 1000  # Points on mesh surface for surface loss
+    num_inside_samples: int = 8000  # Points inside mesh for coverage computation
+    num_surface_samples: int = 1500  # Points on mesh surface for surface loss
 
     # Density control parameters
     radius_threshold: float = 0.005  # Threshold for pruning small spheres
@@ -53,7 +53,7 @@ class TrainingConfig:
     sqem_weight: float = 800.0
 
     # Early stopping parameters
-    early_stopping: bool = True
+    early_stopping: bool = False
     convergence_patience: int = 50
     convergence_threshold: float = 0.001
 
@@ -189,8 +189,7 @@ def update_config_from_dict(
                 if hasattr(section_config, param):
                     setattr(section_config, param, value)
                 else:
-                    raise ValueError(
-                        f"Unknown parameter: {param} in section {section}")
+                    raise ValueError(f"Unknown parameter: {param} in section {section}")
             else:
                 raise ValueError(f"Unknown section: {section}")
         else:
