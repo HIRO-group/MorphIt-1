@@ -1,36 +1,70 @@
 """
-Adaptive density control module for MorphIt sphere packing.
-Handles sphere pruning and addition based on optimization progress.
+Annealed Partial Re-Packing density control for MorphIt sphere packing.
+
+Core idea: every density control pass scores spheres by marginal value,
+culls the lowest-value ones, and re-seeds via farthest-point placement,
+all governed by a temperature schedule that cools over successive passes.
+Sphere count is strictly preserved — the user's requested budget is honoured.
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
-from typing import Tuple, List, Dict, Any
-from inside_mesh import check_mesh_contains
+from typing import Tuple, List, Dict
+
+
+def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:
+    """Inverse of softplus: log(exp(x) - 1). Numerically stable."""
+    return x + torch.log(-torch.expm1(-x))
 
 
 class DensityController:
     """
-    Adaptive density control for sphere packing optimization.
+    Density control via annealed partial re-packing.
 
-    Follows concepts from 3D Gaussian Splatting for dynamic sphere management.
+    Three components:
+        1. Marginal value scoring — how much worse does coverage get
+           if this sphere is removed?
+        2. Farthest-point re-seeding — place new spheres at the worst gaps.
+        3. Temperature schedule — start aggressive, cool down each pass.
     """
 
-    def __init__(self, model, config):
+    def __init__(self, model, config, losses=None):
         """
         Initialize density controller.
 
         Args:
             model: MorphIt model instance
-            config: Training configuration
+            config: MorphIt configuration
+            losses: MorphItLosses instance (used during the warmup pass to
+                run a few mini-optimization steps over only the freshly-
+                placed spheres). Required when warmup_steps > 0.
         """
         self.model = model
         self.config = config
         self.device = model.device
+        self.losses = losses
 
-        # Track when density control was last performed
+        # Fixed sphere budget
+        self.target_count = config.model.num_spheres
+
+        # Temperature schedule: initial replacement fraction; cools each pass
+        self.temperature = 0.4
+        self.cooling_factor = float(config.training.density_control_cooling_factor)
+        self.min_temperature = 0.04
+
+        # Trigger tracking
         self.last_density_control_iter = 0
+
+        # Warmup: a few optimizer steps over the new spheres only,
+        # with survivors frozen, so they settle before main optimization.
+        self.warmup_steps = int(config.training.density_control_warmup_steps)
+        self.warmup_lr = config.training.center_lr * 5
+
+    # ------------------------------------------------------------------
+    # Public interface (matches what training.py expects)
+    # ------------------------------------------------------------------
 
     def should_perform_density_control(
         self,
@@ -39,27 +73,16 @@ class DensityController:
         radius_grad_history: List[float],
         iteration: int,
     ) -> bool:
-        """
-        Determine if density control should be performed.
-
-        Args:
-            loss_history: List of recent loss values
-            position_grad_history: History of position gradient magnitudes
-            radius_grad_history: History of radius gradient magnitudes
-            iteration: Current iteration number
-
-        Returns:
-            Whether to perform density control
-        """
+        """Determine if density control should be triggered."""
         min_interval = self.config.training.density_control_min_interval
         patience = self.config.training.density_control_patience
         grad_threshold = self.config.training.density_control_grad_threshold
 
-        # Always wait for minimum interval
+        # Respect minimum interval
         if iteration - self.last_density_control_iter < min_interval:
             return False
 
-        # Force density control after longer intervals
+        # Force trigger if we've waited too long
         if iteration - self.last_density_control_iter > min_interval * 2:
             return True
 
@@ -67,260 +90,318 @@ class DensityController:
         if len(loss_history) < patience or len(position_grad_history) < patience:
             return False
 
-        # Check if loss has plateaued
+        # Check for loss plateau
         recent_losses = loss_history[-patience:]
         loss_change = abs(recent_losses[0] - recent_losses[-1]) / max(
             abs(recent_losses[0]), 1e-5
         )
-        loss_plateaued = loss_change < 0.01  # Less than 1% change
+        loss_plateaued = loss_change < 0.01
 
-        # Check if gradients are small
+        # Check for small gradients
         recent_pos_grads = position_grad_history[-patience:]
         recent_rad_grads = radius_grad_history[-patience:]
-
         grads_small = (
             sum(g < grad_threshold for g in recent_pos_grads) > patience // 2
             and sum(g < grad_threshold for g in recent_rad_grads) > patience // 2
         )
 
-        should_densify = loss_plateaued or grads_small
+        should_trigger = loss_plateaued or grads_small
 
-        if should_densify:
+        if should_trigger:
             print("\n--- Density Control Trigger ---")
-            print(
-                f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
+            print(f"Loss plateau: {loss_plateaued} (change: {loss_change:.6f})")
             print(f"Small gradients: {grads_small}")
+            print(f"Temperature: {self.temperature:.3f}")
 
-        return should_densify
+        return should_trigger
 
     def adaptive_density_control(self) -> Tuple[int, int]:
         """
-        Perform adaptive density control.
+        Perform one pass of count-preserving annealed partial re-packing.
+
+        Cull the k lowest-marginal-value spheres, then re-seed exactly k
+        new spheres at the k worst-covered interior points (farthest-point
+        placement). Sphere count is strictly preserved — no drift, no
+        floor — so the user's requested budget is honoured. The cull/add
+        cycle is purely a *reshuffling* mechanism: poor placements get
+        replaced by fresh spheres at uncovered interior regions.
 
         Returns:
-            Tuple of (spheres_added, spheres_removed)
+            Tuple of (spheres_added, spheres_removed). These are equal.
         """
-        radius_threshold = self.config.model.radius_threshold
-        coverage_threshold = self.config.model.coverage_threshold
-        max_spheres = self.config.model.max_spheres
+        n = len(self.model.radii)
 
-        print("\n--- Starting Adaptive Density Control ---")
-        initial_count = self.model.num_spheres
-        print(f"Initial sphere count: {initial_count}")
+        # Count-preserving: cull k, add k. Always keep ≥1 survivor so the
+        # marginal-value ranking and the re-seed have a reference pack.
+        k = max(1, int(self.target_count * self.temperature))
+        k = min(k, self.target_count - 1, n - 1)
 
-        # 1. Prune ineffective spheres
-        spheres_removed = self._prune_spheres(radius_threshold)
+        if k <= 0:
+            print(f"Skipping density control: count {n} too low to cull")
+            return 0, 0
 
-        # 2. Add spheres to poorly covered areas
-        spheres_added = self._add_spheres_to_poor_coverage(
-            coverage_threshold, max_spheres
+        print(f"\n{'=' * 50}")
+        print(f"COUNT-PRESERVING RE-PACK (temperature={self.temperature:.3f})")
+        print(f"{'=' * 50}")
+        print(f"Culling and re-seeding {k}/{n} spheres  "
+              f"(target={self.target_count}, preserved)")
+
+        # --- Score: marginal value of each sphere ---
+        values = self._compute_marginal_values()
+        print(
+            f"Marginal values: min={values.min():.4f}, "
+            f"max={values.max():.4f}, mean={values.mean():.4f}"
         )
 
-        # Update sphere count
-        self.model.num_spheres = len(self.model._radii)
+        # --- Cull: remove the k lowest-value spheres ---
+        # Work in real-radius space (post-softplus).
+        real_radii = self.model.radii
+        keep_indices = torch.argsort(values, descending=True)[: n - k]
+        surviving_centers = self.model._centers.data[keep_indices].clone()
+        surviving_radii = real_radii[keep_indices].detach().clone()
 
-        # Print summary
-        print(f"Density control summary:")
-        print(f"  - Initial count: {initial_count}")
-        print(f"  - Removed: {spheres_removed}")
-        print(f"  - Added: {spheres_added}")
-        print(f"  - Final count: {self.model.num_spheres}")
-
-        return spheres_added, spheres_removed
-
-    def _prune_spheres(self, radius_threshold: float) -> int:
-        """
-        Prune ineffective spheres.
-
-        Args:
-            radius_threshold: Minimum radius threshold
-
-        Returns:
-            Number of spheres removed
-        """
-        # Find spheres with small radius
-        small_radius_mask = self.model.radii < radius_threshold
-
-        # Find spheres with centers outside mesh
-        with torch.no_grad():
-            centers_np = self.model.centers.detach().cpu().numpy()
-            outside_mesh_mask = torch.tensor(
-                ~check_mesh_contains(self.model.query_mesh, centers_np),
-                device=self.device,
-                dtype=torch.bool,
-            )
-
-        # Combine pruning criteria
-        prune_mask = small_radius_mask | outside_mesh_mask
-        spheres_to_remove = prune_mask.sum().item()
-
-        print(f"Spheres to prune: {spheres_to_remove}")
-        print(f"  - Small radius: {small_radius_mask.sum().item()}")
-        print(f"  - Center outside mesh: {outside_mesh_mask.sum().item()}")
-
-        if spheres_to_remove > 0:
-            # Keep valid spheres
-            valid_indices = ~prune_mask
-            self.model._centers = nn.Parameter(
-                self.model._centers[valid_indices])
-            self.model._radii = nn.Parameter(self.model._radii[valid_indices])
-            print(f"After pruning: {len(self.model._radii)} spheres remaining")
-
-        return spheres_to_remove
-
-    def _add_spheres_to_poor_coverage(
-        self, coverage_threshold: float, max_spheres: int
-    ) -> int:
-        """
-        Add spheres to poorly covered areas.
-
-        Args:
-            coverage_threshold: Threshold for poor coverage
-            max_spheres: Maximum number of spheres allowed
-
-        Returns:
-            Number of spheres added
-        """
-        # Calculate coverage of inside samples
-        centers = self.model.centers
-        radii = self.model.radii
-
-        dists = torch.norm(
-            self.model.inside_samples.unsqueeze(1) - centers.unsqueeze(0), dim=2
+        removed_values = values[torch.argsort(values, descending=False)[:k]]
+        print(
+            f"Removed {k} spheres (marginal values: "
+            f"{removed_values.min():.4f} - {removed_values.max():.4f})"
         )
-        sphere_coverage = dists - radii.unsqueeze(0)
-        min_distances, _ = torch.min(sphere_coverage, dim=1)
 
-        # Find poorly covered regions
-        poorly_covered = min_distances > coverage_threshold
-        poor_regions = self.model.inside_samples[poorly_covered]
+        # --- Re-seed: farthest-point placement of k new spheres ---
+        new_centers, new_radii = self._farthest_point_reseed(
+            surviving_centers, surviving_radii, k
+        )
+        k_added = len(new_centers)
+        print(
+            f"Placed {k_added}/{k} new spheres  "
+            f"(count preserved: {n} -> {n - k + k_added})"
+        )
 
-        # Limit number of new spheres
-        space_available = max_spheres - len(self.model._radii)
-        spheres_to_add = min(len(poor_regions), space_available)
+        # --- Combine (in real space) then convert to raw space ---
+        all_centers = torch.cat([surviving_centers, new_centers], dim=0)
+        all_radii_real = torch.cat([surviving_radii, new_radii], dim=0)
 
-        repel_distance = float(self.model.radii.mean()) * 0.75
+        self.model._centers = nn.Parameter(all_centers)
+        self.model._radii = nn.Parameter(_inverse_softplus(all_radii_real))
+        self.model.num_spheres = len(all_radii_real)
 
-        if spheres_to_add > 0:
-            print(f"Poorly covered regions: {len(poor_regions)}")
-            print(f"Space available: {space_available}")
-            print(f"Adding {spheres_to_add} new spheres")
+        # --- Warmup: mini-optimization for the new spheres ---
+        self._warmup_new_spheres(n_surviving=len(surviving_centers))
 
-            # Select positions for new spheres (diversity-aware)
-            scores = min_distances[poorly_covered]  # higher = worse coverage
-            sorted_idx = torch.argsort(scores, descending=True)
+        # --- Cool down ---
+        old_temp = self.temperature
+        self.temperature = max(
+            self.min_temperature, self.temperature * self.cooling_factor
+        )
+        print(f"Temperature: {old_temp:.3f} -> {self.temperature:.3f}")
+        print(f"Final sphere count: {self.model.num_spheres}")
+        print(f"{'=' * 50}")
 
-            existing = self.model.centers  # [N, 3]
-            selected = []
-
-            for idx in sorted_idx:
-                if len(selected) == spheres_to_add:
-                    break
-
-                p = poor_regions[idx]  # candidate [3]
-
-                # keep away from existing spheres
-                d_existing = torch.norm(existing - p.unsqueeze(0), dim=1)
-                if torch.min(d_existing) < repel_distance:
-                    continue
-
-                # keep away from already-picked new spheres
-                if selected:
-                    chosen_pts = poor_regions[torch.tensor(
-                        selected, device=self.device)]
-                    d_chosen = torch.norm(chosen_pts - p.unsqueeze(0), dim=1)
-                    if torch.min(d_chosen) < repel_distance:
-                        continue
-
-                selected.append(idx.item())
-
-            if len(selected) == 0:
-                return 0
-
-            new_centers = poor_regions[torch.tensor(
-                selected, device=self.device)]
-
-            # # Select positions for new spheres
-            # if len(poor_regions) > spheres_to_add:
-            #     # Prioritize worst coverage areas
-            #     sorted_indices = torch.argsort(
-            #         min_distances[poorly_covered], descending=True
-            #     )
-            #     selected_indices = sorted_indices[:spheres_to_add]
-            #     new_centers = poor_regions[selected_indices]
-            # else:
-            #     new_centers = poor_regions
-
-            # Set appropriate radii for new spheres
-            # new_radii = (
-            #     torch.ones(len(new_centers), device=self.device)
-            #     * self.model.radii.mean()
-            #     * 0.5
-            # )
-
-            new_radii = (
-                torch.ones(len(new_centers), device=self.device)
-                * self.model.radii.mean()
-                * 0.5
-            )
-
-            # Add new spheres
-            self.model._centers = nn.Parameter(
-                torch.cat([self.model._centers, new_centers], dim=0)
-            )
-            self.model._radii = nn.Parameter(
-                torch.cat([self.model._radii, new_radii], dim=0)
-            )
-
-            return len(new_centers)
-
-        return 0
-
-    def prune_spheres(self, radius_threshold: float = 0.001) -> int:
-        """
-        Simple sphere pruning function.
-
-        Args:
-            radius_threshold: Minimum radius threshold
-
-        Returns:
-            Number of spheres removed
-        """
-        print("\nPruning spheres...")
-        initial_count = len(self.model._radii)
-        print(f"Initial sphere count: {initial_count}")
-
-        # Find spheres to remove
-        small_radius_mask = self.model._radii < radius_threshold
-
-        # Find spheres outside mesh
-        with torch.no_grad():
-            centers_np = self.model._centers.detach().cpu().numpy()
-            outside_mesh_mask = torch.tensor(
-                ~check_mesh_contains(self.model.query_mesh, centers_np),
-                device=self.device,
-                dtype=torch.bool,
-            )
-
-        # Combine criteria
-        prune_mask = small_radius_mask | outside_mesh_mask
-        valid_indices = ~prune_mask
-
-        # Report statistics
-        spheres_removed = prune_mask.sum().item()
-        print(f"Removing {spheres_removed} spheres:")
-        print(f"  - Small radius: {small_radius_mask.sum().item()}")
-        print(f"  - Outside mesh: {outside_mesh_mask.sum().item()}")
-
-        # Update parameters
-        self.model._centers = nn.Parameter(self.model._centers[valid_indices])
-        self.model._radii = nn.Parameter(self.model._radii[valid_indices])
-        self.model.num_spheres = len(self.model._radii)
-
-        print(f"After pruning: {self.model.num_spheres} spheres remaining")
-
-        return spheres_removed
+        return k_added, k
 
     def update_last_density_control_iter(self, iteration: int):
         """Update the last density control iteration."""
         self.last_density_control_iter = iteration
+
+    # ------------------------------------------------------------------
+    # Core algorithms
+    # ------------------------------------------------------------------
+
+    def _compute_marginal_values(self) -> torch.Tensor:
+        """
+        Compute the marginal value of each sphere for *the variant's own
+        loss*. A V run (coverage-dominant) judges spheres by how much
+        interior coverage they guard; an S run (surface-dominant) judges
+        them by how much surface coverage they guard; B blends.
+
+        For each sample point, find the closest sphere and the 2nd-closest
+        sphere's surfaces. The "gap" (2nd - 1st) is the coverage hole that
+        would open if the closest sphere were removed. Gaps are accumulated
+        per sphere separately over interior and surface samples, then
+        combined with weights taken from the training config:
+
+            value = w_interior * interior_gap + w_surface * surface_gap
+
+        where w_interior = coverage_weight and
+        w_surface       = surface_weight + boundary_weight + sqem_weight.
+
+        This preserves V's interior-guarding spheres (previously culled
+        because they scored 0 on pure-surface marginal value) while still
+        letting S/B prioritize their surface-side responsibilities.
+
+        Returns:
+            [num_spheres] tensor; higher = more valuable (harder to lose).
+        """
+        with torch.no_grad():
+            centers = self.model.centers
+            radii = self.model.radii
+            n_spheres = len(radii)
+
+            w_interior = float(self.config.training.coverage_weight)
+            w_surface = float(
+                self.config.training.surface_weight
+                + self.config.training.boundary_weight
+                + self.config.training.sqem_weight
+            )
+
+            def _score(samples: torch.Tensor) -> torch.Tensor:
+                dists = torch.cdist(samples, centers) - radii.unsqueeze(0)
+                top2_dists, top2_idx = torch.topk(
+                    dists, k=min(2, n_spheres), dim=1, largest=False
+                )
+                closest_idx = top2_idx[:, 0]
+                closest_dist = top2_dists[:, 0]
+                if n_spheres >= 2:
+                    second_dist = top2_dists[:, 1]
+                else:
+                    second_dist = torch.full_like(closest_dist, 1e6)
+                gap = second_dist - closest_dist
+                out = torch.zeros(n_spheres, device=self.device)
+                out.scatter_add_(0, closest_idx, gap)
+                return out
+
+            values = torch.zeros(n_spheres, device=self.device)
+            if w_interior > 0:
+                values = values + w_interior * _score(self.model.inside_samples)
+            if w_surface > 0:
+                values = values + w_surface * _score(self.model.surface_samples)
+            return values
+
+    def _farthest_point_reseed(
+        self,
+        surviving_centers: torch.Tensor,
+        surviving_radii: torch.Tensor,
+        k_max: int,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Place exactly ``k_max`` new spheres via iterative farthest-point
+        sampling on the INTERIOR of the mesh. Candidates are taken from
+        ``inside_samples``.
+
+        Count-preserving: the caller has already culled ``k_max`` spheres,
+        so we must place exactly ``k_max`` back (no gap-based early exit).
+        Even when the worst remaining gap is small, a fresh sphere seeded
+        there is what allows the optimizer to reshuffle out of a poor
+        equilibrium on subsequent steps.
+
+        Args:
+            surviving_centers: [M, 3] centers of kept spheres
+            surviving_radii:   [M]    radii of kept spheres
+            k_max:             exact number of new spheres to place
+
+        Returns:
+            Tuple of (new_centers [k_max, 3], new_radii [k_max]).
+        """
+        with torch.no_grad():
+            candidates = self.model.inside_samples  # [N, 3]
+            n_cand = len(candidates)
+
+            # Current coverage: distance from each candidate to nearest
+            # surviving sphere's surface.
+            if len(surviving_centers) > 0:
+                dists = torch.cdist(candidates, surviving_centers)
+                dists_to_surface = dists - surviving_radii.unsqueeze(0)
+                min_dists, _ = torch.min(dists_to_surface, dim=1)  # [N]
+            else:
+                min_dists = torch.full((n_cand,), 1e6, device=self.device)
+
+            new_centers_list = []
+            new_radii_list = []
+
+            if len(surviving_radii) > 0:
+                radius_cap = surviving_radii.median().item() * 1.5
+                # Seed new spheres at the survivor median so they are
+                # immediately useful. Previously 0.5 * min left many
+                # fresh spheres at ~0.001 that never had time to grow
+                # before training ended — dead weight that hurt V's
+                # coverage at large n.
+                default_radius = surviving_radii.median().item()
+            else:
+                radius_cap = 1e6
+                default_radius = 1e-3
+
+            mesh_scale = self.model.query_mesh.scale
+
+            for _ in range(k_max):
+                worst_idx = torch.argmax(min_dists)
+                new_center = candidates[worst_idx].clone()
+                gap_at_point = min_dists[worst_idx].item()
+
+                # Always start at least at median survivor size so fresh
+                # spheres contribute immediately; if the local gap is
+                # larger, use that (fill the uncovered hole).
+                new_radius = max(gap_at_point, default_radius)
+                new_radius = min(new_radius, radius_cap, mesh_scale * 0.3)
+
+                new_center_t = new_center.unsqueeze(0)
+                new_radius_t = torch.tensor(
+                    [new_radius], device=self.device, dtype=torch.float32
+                )
+
+                new_centers_list.append(new_center)
+                new_radii_list.append(new_radius_t)
+
+                dist_to_new = (
+                    torch.norm(candidates - new_center_t, dim=1) - new_radius
+                )
+                min_dists = torch.min(min_dists, dist_to_new)
+
+            new_centers = torch.stack(new_centers_list, dim=0)
+            new_radii = torch.cat(new_radii_list, dim=0)
+
+            return new_centers, new_radii
+
+    def _warmup_new_spheres(self, n_surviving: int):
+        """
+        Run a few optimizer steps on only the new spheres while keeping
+        survivors frozen (gradient zeroed + data restored afterwards).
+        Lets new spheres settle into reasonable positions before the main
+        optimizer sees them.
+        """
+        if self.warmup_steps <= 0:
+            return
+
+        if self.losses is None:
+            print("Warmup skipped: density controller has no losses handle")
+            return
+
+        print(f"Warming up new spheres ({self.warmup_steps} steps)...")
+
+        with torch.no_grad():
+            survivor_centers = self.model._centers.data[:n_surviving].clone()
+            survivor_radii = self.model._radii.data[:n_surviving].clone()
+
+        temp_optimizer = torch.optim.Adam(
+            [
+                {"params": self.model._centers, "lr": self.warmup_lr},
+                {"params": self.model._radii, "lr": self.warmup_lr * 0.5},
+            ]
+        )
+
+        loss_weights = self.losses.get_loss_weights_from_config(
+            self.config.training)
+
+        for _ in range(self.warmup_steps):
+            temp_optimizer.zero_grad()
+
+            all_losses = self.losses.compute_all_losses(weights=loss_weights)
+            total_loss = torch.tensor(0.0, device=self.device)
+            for name, value in all_losses.items():
+                if name in loss_weights:
+                    total_loss = total_loss + loss_weights[name] * value
+
+            total_loss.backward()
+
+            # Freeze survivors by zeroing their gradients.
+            if self.model._centers.grad is not None:
+                self.model._centers.grad.data[:n_surviving] = 0.0
+            if self.model._radii.grad is not None:
+                self.model._radii.grad.data[:n_surviving] = 0.0
+
+            temp_optimizer.step()
+
+        # Restore survivors exactly (protect against floating-point drift).
+        with torch.no_grad():
+            self.model._centers.data[:n_surviving] = survivor_centers
+            self.model._radii.data[:n_surviving] = survivor_radii
+
+        print(f"Warmup complete (final loss: {total_loss.item():.6f})")

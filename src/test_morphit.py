@@ -186,9 +186,11 @@ def test_loss_computation():
 
         print("✓ All individual loss functions work")
 
-        # Test combined losses
+        # Test combined losses. The full set is 12: the paper's six
+        # (coverage, overlap, boundary, surface, containment, SQEM)
+        # plus mass/com/inertia, hausdorff, mesh_containment, flatness.
         all_losses = losses.compute_all_losses()
-        assert len(all_losses) == 6
+        assert len(all_losses) == 12, f"expected 12 losses, got {len(all_losses)}"
         print("✓ Combined loss computation works")
 
         # Test weighted total loss

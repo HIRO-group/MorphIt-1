@@ -20,16 +20,21 @@ def main():
     config_updates = {
         "model.num_spheres": 20,
         "model.mesh_path": "../mesh_models/fr3/collision/link0.obj",
-        # For bigger or smaller shapes than the default panda link, these parameters are useful to adjust
-        # "model.mesh_path": "../mesh_models/objects/t-shape/t-shape.obj",
-        # "model.mesh_path": "../mesh_models/objects/pusher-stick/pusher-stick.obj",
-        # "model.radius_threshold": 0.03,
-        # "model.coverage_threshold": 0.02,
-        # "training.early_stopping": False,
+        # For other meshes, swap the path above. The voxel-grid initializer
+        # auto-tunes its cell size to the mesh, so no per-mesh tuning is
+        # required for typical robot links.
+        # "model.mesh_path": "../mesh_models/objects/bunny.obj",
         "training.iterations": 200,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 150,
+        # Density control reshuffles low-value spheres into uncovered
+        # interior gaps. Min-interval gates how often it can fire; the
+        # default fires ~2x in 200 iters, which is a balance between
+        # quality and runtime.
+        "training.density_control_min_interval": 80,
+        # Radius LR is in raw (pre-softplus) space — the effective step
+        # on the real radius is sigmoid(raw_r) * lr.
+        "training.radius_lr": 0.1,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,

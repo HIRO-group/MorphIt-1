@@ -31,9 +31,12 @@ class MorphItTrainer:
         self.config = config
         self.device = model.device
 
-        # Initialize components
+        # Initialize components. The density controller borrows the
+        # losses instance so its warmup pass can compute the same
+        # weighted total loss as the main training loop.
         self.losses = MorphItLosses(model)
-        self.density_controller = DensityController(model, config)
+        self.density_controller = DensityController(
+            model, config, losses=self.losses)
 
         # Initialize optimizer
         self.optimizer = self._create_optimizer()
@@ -148,8 +151,10 @@ class MorphItTrainer:
         # Zero gradients
         self.optimizer.zero_grad()
 
-        # Compute losses
-        losses = self.losses.compute_all_losses()
+        # Compute losses. Pass weights so zero-weight losses are skipped
+        # entirely — important because flatness/mesh_containment/etc. are
+        # expensive and many configs leave them at 0.
+        losses = self.losses.compute_all_losses(weights=loss_weights)
 
         # Compute weighted total loss
         total_loss = torch.tensor(0.0, device=self.device)
@@ -265,6 +270,8 @@ class MorphItTrainer:
 
     def _should_perform_density_control(self, iteration: int) -> bool:
         """Check if density control should be performed."""
+        if not self.config.training.density_control_enabled:
+            return False
         return self.density_controller.should_perform_density_control(
             self.convergence_tracker.metrics["total_loss"],
             self.convergence_tracker.metrics["gradient_info"]["position_grad_mag"],
@@ -293,6 +300,12 @@ class MorphItTrainer:
         # Reset optimizer if parameters changed
         if spheres_added > 0 or spheres_removed > 0:
             self._reset_optimizer()
+            # Surface samples don't change here, but cached face groups
+            # in the flatness loss must be invalidated whenever the
+            # sphere set changes, since the cluster-by-normal cache
+            # holds tensor indices computed against the previous mesh
+            # state. Cheap no-op if flatness loss is disabled.
+            self.losses.reset_flatness_cache()
 
     def _finalize_training(self):
         """Finalize training and cleanup."""
@@ -300,8 +313,10 @@ class MorphItTrainer:
         if hasattr(self.model, "render_thread"):
             self.model.stop_render_thread()
 
-        # Final pruning
-        self.density_controller.prune_spheres()
+        # No final prune: density control is count-preserving by design,
+        # so the post-training sphere count must equal num_spheres.
+        # A radius/inside-mesh prune here would silently violate that
+        # invariant and break user expectations.
 
         # Log final state
         self.evolution_logger.log_spheres(self.model, self.current_iteration, "final")

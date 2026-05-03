@@ -109,12 +109,11 @@ python run_spherical_panda_drake_example.py
 
 ### Core System
 
-- `morphit.py` - Main MorphIt class implementing the spherical approximation algorithm
+- `morphit.py` - Main MorphIt class implementing the spherical approximation algorithm.
 - `config.py` - Configuration management with predefined variants (V, S, B)
-- `losses.py` - Loss functions for optimization (coverage, overlap, boundary, surface, containment, SQEM)
+- `losses.py` - Loss functions for optimization.
 - `training.py` - Training loop and optimization logic
-- `density_control.py` - Adaptive sphere pruning and addition mechanisms
-
+- `density_control.py` - Annealed partial re-packing.
 ### Utilities
 
 - `inside_mesh.py` - Efficient mesh containment checking using Cython
@@ -128,6 +127,7 @@ python run_spherical_panda_drake_example.py
 - `test_morphit.py` - Comprehensive system tests
 - `morphit_panda.py` - Batch processing for Franka Panda robot
 - `visualize_packing.py` - Standalone visualization tool
+- `scripts/debug_quick_eval.py` - Small evaluation grid (variant × link × sphere count) that re-trains and prints a metrics table; useful for sanity-checking changes against the paper-ordering targets
 - `scripts/` - URDF generation and integration scripts for Drake, CuRobo
 
 ### Build Files

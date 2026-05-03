@@ -5,6 +5,7 @@ Refactored from SpherePacker with improved modularity and configuration.
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 import trimesh
 import time
@@ -14,6 +15,11 @@ from pathlib import Path
 
 from config import MorphItConfig
 from inside_mesh import check_mesh_contains
+
+
+def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:
+    """Inverse of softplus: log(exp(x) - 1). Numerically stable."""
+    return x + torch.log(-torch.expm1(-x))
 
 
 class MorphIt(nn.Module):
@@ -63,6 +69,22 @@ class MorphIt(nn.Module):
         self.query_mesh = trimesh.load(self.mesh_path, force="mesh")
         self.mesh_volume = self.query_mesh.volume
 
+        # Mass / center-of-mass / inertia of the target mesh. Pre-computed
+        # once because the mass/com/inertia losses reference them every
+        # iteration. trimesh.moment_inertia is volume-units * 1; we scale
+        # by density so the residual is in physically meaningful kg·m²
+        # (matching mesh_mass = volume * density).
+        self.density = self.config.model.density
+        self.mesh_mass = self.query_mesh.volume * self.density
+        self.mesh_com = torch.tensor(
+            self.query_mesh.center_mass, dtype=torch.float32, device=self.device
+        )
+        self.mesh_inertia = torch.tensor(
+            self.query_mesh.moment_inertia * self.density,
+            dtype=torch.float32,
+            device=self.device,
+        )
+
         # Initialize components
         self._initialize_spheres()
         self._initialize_sample_points()
@@ -72,44 +94,95 @@ class MorphIt(nn.Module):
         self.pl = None  # PyVista plotter placeholder
 
     def _initialize_spheres(self):
-        """Initialize sphere centers and radii with optimal placement."""
-        # Sample centers inside the mesh
-        centers = self._sample_centers_inside_mesh(self.num_spheres)
+        """Initialize sphere centers and radii.
 
-        # Initialize radii with variation
+        Centers: voxel-grid placement (paper default). Voxel size is
+        auto-tuned so the set of inside cells has at least num_spheres
+        members; num_spheres of them are then randomly selected. This
+        yields a well-spread, structured seed.
+        Radii:   volume-preserving log-normal around the paper's mean
+                 radius target (mesh_volume / num_spheres).
+        """
+        centers = self._voxel_sample_centers(self.num_spheres)
         radii = self._initialize_radii_with_variation(self.num_spheres)
 
-        # Set as trainable parameters
         self._centers = nn.Parameter(centers)
-        self._radii = nn.Parameter(radii)
+        # Softplus reparameterization keeps radii strictly positive and
+        # avoids numerical pathologies when a sphere briefly gets zero
+        # radius during training. We compensate for the softplus gradient
+        # attenuation by using a higher radius_lr (see TrainingConfig).
+        self._radii = nn.Parameter(_inverse_softplus(radii))
+        self.num_spheres = len(radii)
+        self._print_initialization_stats(self.radii)
 
-        # Print statistics
-        self._print_initialization_stats(radii)
+    def _voxel_sample_centers(self, num_spheres: int,
+                              safety: float = 1.5,
+                              max_iters: int = 10) -> torch.Tensor:
+        """Place sphere centers at cell centers of a uniform voxel grid.
 
-    def _sample_centers_inside_mesh(self, num_spheres: int) -> torch.Tensor:
-        """Sample sphere centers inside the mesh volume."""
-        # Request more points than needed for efficiency
-        points_to_request = num_spheres * 2
-        sample_points = trimesh.sample.volume_mesh(
-            self.query_mesh, count=points_to_request
-        )
+        Voxel size is auto-tuned so the set of cells whose centers lie
+        inside the mesh has at least ``num_spheres`` members (typically
+        ~safety × num_spheres). ``num_spheres`` of those cells are then
+        randomly selected. This yields a well-spread, grid-like seed
+        (so spheres start in distinct parts of the volume) with enough
+        random variation that repeat runs don't get trapped in the same
+        local minimum.
 
-        # Take only what we need
-        center_points = sample_points[:num_spheres]
+        Target occupancy: #inside_voxels ≈ safety × num_spheres.
+        Assuming the inside-volume fraction of the AABB is roughly
+        stable over voxel size changes, #inside_voxels ≈ V_mesh / s**3,
+        so the initial estimate is s = (V_mesh / (safety*N))**(1/3).
+        The iteration corrects if that estimate is off (thin meshes,
+        concavities, etc.).
+        """
+        mesh = self.query_mesh
+        lo, hi = mesh.bounds
+        extent = hi - lo
 
-        # If we don't have enough, sample more
-        if len(center_points) < num_spheres:
-            remaining = num_spheres - len(center_points)
-            while len(center_points) < num_spheres:
-                more_points = trimesh.sample.volume_mesh(
-                    self.query_mesh, count=remaining * 2
-                )
-                center_points = np.vstack([center_points, more_points])
-                if len(center_points) >= num_spheres:
-                    center_points = center_points[:num_spheres]
-                    break
+        voxel_size = float((mesh.volume / (num_spheres * safety)) ** (1.0 / 3.0))
+        # Clamp initial guess to a sane range relative to the mesh scale.
+        voxel_size = min(max(voxel_size, mesh.scale * 1e-3), mesh.scale)
 
-        return torch.tensor(center_points, dtype=torch.float32, device=self.device)
+        inside = np.empty((0, 3), dtype=np.float64)
+        for _ in range(max_iters):
+            n_axis = np.maximum(1, np.ceil(extent / voxel_size).astype(int))
+            axes = [
+                lo[i] + (np.arange(n_axis[i]) + 0.5) * voxel_size
+                for i in range(3)
+            ]
+            grid = np.stack(
+                np.meshgrid(*axes, indexing="ij"), axis=-1
+            ).reshape(-1, 3)
+
+            mask = check_mesh_contains(mesh, grid)
+            inside = grid[mask]
+
+            if len(inside) >= num_spheres:
+                break
+            # Too few inside cells — shrink voxel and retry.
+            voxel_size *= 0.75
+
+        if len(inside) < num_spheres:
+            # Mesh is too thin / concave for voxels to fit; top up with
+            # uniform volume samples so the caller always gets N centers.
+            needed = num_spheres - len(inside)
+            fallback = trimesh.sample.volume_mesh(
+                mesh, count=max(needed * 3, 100))
+            if len(fallback) < needed:
+                surf, _ = trimesh.sample.sample_surface(
+                    mesh, count=needed * 2)
+                fallback = np.vstack([fallback, surf + 0.05 *
+                                      (mesh.center_mass - surf)])
+            inside = np.vstack([inside, fallback[:needed]])
+
+        n_candidates = len(inside)
+        if n_candidates > num_spheres:
+            idx = np.random.choice(n_candidates, num_spheres, replace=False)
+            inside = inside[idx]
+
+        print(f"Voxel init: size={voxel_size:.5f}m  "
+              f"candidates={n_candidates}  selected={num_spheres}")
+        return torch.tensor(inside, dtype=torch.float32, device=self.device)
 
     def _initialize_radii_with_variation(self, num_spheres: int) -> torch.Tensor:
         """Initialize radii with non-uniform distribution preserving target volume."""
@@ -223,13 +296,15 @@ class MorphIt(nn.Module):
 
     @property
     def radii(self) -> torch.Tensor:
-        """Get sphere radii."""
-        return self._radii
+        """Get sphere radii (always positive via softplus reparameterization)."""
+        return F.softplus(self._radii)
 
     @radii.setter
     def radii(self, value: torch.Tensor):
-        """Set sphere radii."""
-        self._radii = nn.Parameter(torch.tensor(value, device=self.device))
+        """Set sphere radii (stores inverse-softplus internally)."""
+        self._radii = nn.Parameter(
+            _inverse_softplus(torch.tensor(value, device=self.device))
+        )
 
     def save_results(self, filename: Optional[str] = None) -> None:
         """

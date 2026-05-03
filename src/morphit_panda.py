@@ -22,9 +22,13 @@ def batch_process_meshes():
     config_updates = {
         "model.num_spheres": 15,
         "training.iterations": 500,
-        "training.verbose_frequency": 10,
+        "training.verbose_frequency": 50,
         "training.logging_enabled": False,
-        "training.density_control_min_interval": 270,
+        # Density control fires a few times across 500 iters at this
+        # cadence, which is enough to escape early packing equilibria.
+        "training.density_control_min_interval": 150,
+        # Radius LR in raw (pre-softplus) space; see TrainingConfig.
+        "training.radius_lr": 0.1,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,
