@@ -25,14 +25,20 @@ metadata:
   name: morphit-deployer
   namespace: morphit
 rules:
-  # `kubectl set image deployment/morphit ...` -> patch on this one Deployment.
-  # `kubectl rollout status deploy/morphit`    -> get + watch on this Deployment.
-  # resourceNames pins it to the single Deployment named "morphit"; the SA
-  # cannot affect any other workload even if one is added to this namespace.
+  # Mutating + reading verbs are pinned to the single Deployment named
+  # "morphit": the SA cannot patch any other workload, even if more are
+  # added to this namespace later.
   - apiGroups: ["apps"]
     resources: ["deployments"]
     resourceNames: ["morphit"]
     verbs: ["get", "watch", "patch"]
+  # `kubectl rollout status` uses an informer that calls `list` on the
+  # collection. RBAC ignores `resourceNames` for the `list` and `create`
+  # verbs, so this rule cannot be narrowed to a single deployment — but
+  # it stays namespaced (no cluster-wide access) and read-only.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
