@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MorphIt</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { margin: 0 0 .25rem; }
+  p.lede { color: #666; margin: 0 0 1.5rem; }
+  fieldset { border: 1px solid #ccc; border-radius: 6px; padding: 1rem 1.25rem; margin: 0 0 1rem; }
+  legend { padding: 0 .25rem; font-weight: 600; }
+  label { display: block; margin: .5rem 0; }
+  label > span { display: inline-block; min-width: 9rem; }
+  input[type=number], select, input[type=file] { font: inherit; padding: .25rem .5rem; }
+  button { font: inherit; padding: .5rem 1rem; border-radius: 6px; border: 1px solid #888; background: #f6f6f6; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  pre { background: #111; color: #eee; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 60vh; }
+  .row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+  .status { color: #555; }
+  .err { color: #b00; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<h1>MorphIt</h1>
+<p class="lede">Upload a triangle mesh (.obj / .stl / .ply); receive the spherical approximation as JSON.</p>
+
+<form id="f">
+  <fieldset>
+    <legend>Input</legend>
+    <label><span>Mesh file</span><input type="file" name="mesh" accept=".obj,.stl,.ply" required></label>
+    <label><span>Variant</span>
+      <select name="variant">
+        <option value="MorphIt-B" selected>MorphIt-B (balanced)</option>
+        <option value="MorphIt-V">MorphIt-V (volume)</option>
+        <option value="MorphIt-S">MorphIt-S (surface)</option>
+      </select>
+    </label>
+    <label><span>Num spheres</span><input type="number" name="num_spheres" min="1" max="200" value="20"></label>
+    <label><span>Iterations</span><input type="number" name="iterations" min="1" max="1000" value="200"></label>
+  </fieldset>
+  <div class="row">
+    <button id="go" type="submit">Run MorphIt</button>
+    <button id="dl" type="button" disabled>Download JSON</button>
+    <span id="status" class="status"></span>
+  </div>
+</form>
+
+<pre id="out" hidden></pre>
+
+<script>
+const f = document.getElementById('f');
+const out = document.getElementById('out');
+const status = document.getElementById('status');
+const go = document.getElementById('go');
+const dl = document.getElementById('dl');
+let lastBlobUrl = null;
+let lastFilename = 'morphit_result.json';
+
+f.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  out.hidden = true;
+  out.textContent = '';
+  status.textContent = '';
+  status.classList.remove('err');
+  go.disabled = true;
+  dl.disabled = true;
+  if (lastBlobUrl) { URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null; }
+
+  const fd = new FormData(f);
+  const meshFile = fd.get('mesh');
+  if (meshFile && meshFile.name) {
+    lastFilename = meshFile.name.replace(/\.[^.]+$/, '') + '_morphit.json';
+  }
+  const t0 = performance.now();
+  status.textContent = 'Running…';
+
+  try {
+    const r = await fetch('/api/morph', { method: 'POST', body: fd });
+    const text = await r.text();
+    if (!r.ok) {
+      status.classList.add('err');
+      status.textContent = `Error ${r.status}: ${text}`;
+      return;
+    }
+    out.textContent = text;
+    out.hidden = false;
+    const dt = ((performance.now() - t0) / 1000).toFixed(1);
+    status.textContent = `Done in ${dt}s.`;
+    lastBlobUrl = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    dl.disabled = false;
+  } catch (err) {
+    status.classList.add('err');
+    status.textContent = String(err);
+  } finally {
+    go.disabled = false;
+  }
+});
+
+dl.addEventListener('click', () => {
+  if (!lastBlobUrl) return;
+  const a = document.createElement('a');
+  a.href = lastBlobUrl;
+  a.download = lastFilename;
+  a.click();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: morphit
+  namespace: morphit
+  labels:
+    app: morphit
+spec:
+  rules:
+    - host: morphit.nataliya.dev
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: morphit
+                port:
+                  name: http

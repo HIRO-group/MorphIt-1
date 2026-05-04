@@ -1,0 +1,43 @@
+# Subset of requirements.txt for the FastAPI container image.
+# Excludes CUDA wheels (nvidia-*, triton), the GPU torch wheel (installed
+# separately from the CPU index in the Dockerfile), and visualization deps
+# (pyvista, vtk, matplotlib, imageio, av) — the API path imports
+# morphit/training/losses only and never touches visualization.py.
+
+# Build-time
+cython==3.1.2
+
+# Core
+numpy==2.2.6
+trimesh==4.6.13
+rtree==1.4.0
+networkx==3.4.2
+pyyaml==6.0.2
+pillow==11.3.0
+
+# Torch transitive deps (torch itself is installed in the Dockerfile)
+filelock==3.18.0
+fsspec==2025.5.1
+jinja2==3.1.6
+markupsafe==3.0.2
+mpmath==1.3.0
+sympy==1.14.0
+typing-extensions==4.14.1
+psutil==7.0.0
+
+# Misc transitive
+certifi==2025.6.15
+charset-normalizer==3.4.2
+idna==3.10
+packaging==25.0
+platformdirs==4.3.8
+python-dateutil==2.9.0.post0
+requests==2.32.4
+setuptools==80.9.0
+six==1.17.0
+urllib3==2.5.0
+
+# Web layer
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
