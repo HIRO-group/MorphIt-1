@@ -5,49 +5,223 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MorphIt</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-  h1 { margin: 0 0 .25rem; }
-  p.lede { color: #666; margin: 0 0 1.5rem; }
-  fieldset { border: 1px solid #ccc; border-radius: 6px; padding: 1rem 1.25rem; margin: 0 0 1rem; }
-  legend { padding: 0 .25rem; font-weight: 600; }
-  label { display: block; margin: .5rem 0; }
-  label > span { display: inline-block; min-width: 9rem; }
-  input[type=number], select, input[type=file] { font: inherit; padding: .25rem .5rem; }
-  button { font: inherit; padding: .5rem 1rem; border-radius: 6px; border: 1px solid #888; background: #f6f6f6; cursor: pointer; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  pre { background: #111; color: #eee; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 60vh; }
-  .row { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
-  .status { color: #555; }
-  .err { color: #b00; white-space: pre-wrap; }
+  :root {
+    color-scheme: dark;
+    --bg: #0b0e14;
+    --bg-elev: #141923;
+    --bg-input: #0e131c;
+    --border: #262d3a;
+    --border-strong: #313a4f;
+    --text: #e6e8ee;
+    --muted: #8a93a6;
+    --accent: #7c8cff;
+    --accent-hover: #99a5ff;
+    --accent-fg: #0b0e14;
+    --danger: #ff6b6b;
+    --ok: #5fd394;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -6px rgb(0 0 0 / 0.5);
+    --shadow-glow: 0 0 0 3px rgb(124 140 255 / 0.18);
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 50% -200px, rgb(124 140 255 / 0.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: clamp(2rem, 5vw, 4rem) 1.25rem 5rem; }
+
+  header { margin-bottom: 1.75rem; }
+  h1 {
+    margin: 0;
+    font-size: clamp(1.85rem, 3.5vw, 2.4rem);
+    font-weight: 650;
+    letter-spacing: -0.02em;
+  }
+  .lede { margin: .35rem 0 0; color: var(--muted); font-size: .98rem; }
+
+  .card {
+    background: linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent), var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem 1.25rem;
+  }
+  .grid > .full { grid-column: 1 / -1; }
+  @media (max-width: 540px) { .grid { grid-template-columns: 1fr; } }
+
+  label.field { display: flex; flex-direction: column; gap: .4rem; }
+  label.field > span {
+    font-size: .82rem;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: .01em;
+  }
+
+  input[type=number],
+  input[type=file],
+  select {
+    font: inherit;
+    color: var(--text);
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: .6rem .75rem;
+    width: 100%;
+    transition: border-color .12s ease, box-shadow .12s ease, background-color .12s ease;
+  }
+  input[type=number]:hover, select:hover, input[type=file]:hover { border-color: var(--border-strong); }
+  input[type=number]:focus, select:focus, input[type=file]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* native file input button */
+  input[type=file] { padding: .45rem .55rem; cursor: pointer; }
+  input[type=file]::file-selector-button {
+    font: inherit;
+    color: var(--text);
+    background: #1d2434;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: .35rem .75rem;
+    margin-right: .75rem;
+    cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease;
+  }
+  input[type=file]::file-selector-button:hover { background: #242c40; border-color: #3d4866; }
+
+  /* native select arrow */
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='none' stroke='%238a93a6' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' d='M3 4.5l3 3 3-3'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right .8rem center;
+    padding-right: 2rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 1.25rem;
+  }
+
+  .btn {
+    font: inherit;
+    font-weight: 550;
+    border-radius: var(--radius-sm);
+    padding: .65rem 1.1rem;
+    cursor: pointer;
+    transition: background-color .12s ease, border-color .12s ease, transform .08s ease, box-shadow .12s ease, color .12s ease;
+    border: 1px solid transparent;
+    line-height: 1.2;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+    box-shadow: var(--shadow-sm), 0 4px 14px -4px rgb(124 140 255 / 0.5);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .btn-ghost:hover:not(:disabled) { background: rgb(255 255 255 / 0.04); border-color: #3d4866; }
+
+  .status { color: var(--muted); font-size: .9rem; }
+  .status.err { color: var(--danger); white-space: pre-wrap; }
+  .status.ok { color: var(--ok); }
+
+  .output {
+    margin-top: 1.25rem;
+    background: #0a0d14;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+    box-shadow: var(--shadow-sm);
+    overflow: auto;
+    max-height: 60vh;
+    font: 13px/1.55 ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    color: #cbd2e0;
+    white-space: pre;
+  }
+
+  /* simple shimmer when running */
+  .running .btn-primary {
+    background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 50%, var(--accent) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>
 </head>
 <body>
-<h1>MorphIt</h1>
-<p class="lede">Upload a triangle mesh (.obj / .stl / .ply); receive the spherical approximation as JSON.</p>
+<div class="wrap">
+  <header>
+    <h1>MorphIt</h1>
+    <p class="lede">Upload a triangle mesh (.obj / .stl / .ply) and get the spherical approximation as JSON.</p>
+  </header>
 
-<form id="f">
-  <fieldset>
-    <legend>Input</legend>
-    <label><span>Mesh file</span><input type="file" name="mesh" accept=".obj,.stl,.ply" required></label>
-    <label><span>Variant</span>
-      <select name="variant">
-        <option value="MorphIt-B" selected>MorphIt-B (balanced)</option>
-        <option value="MorphIt-V">MorphIt-V (volume)</option>
-        <option value="MorphIt-S">MorphIt-S (surface)</option>
-      </select>
-    </label>
-    <label><span>Num spheres</span><input type="number" name="num_spheres" min="1" max="200" value="20"></label>
-    <label><span>Iterations</span><input type="number" name="iterations" min="1" max="1000" value="200"></label>
-  </fieldset>
-  <div class="row">
-    <button id="go" type="submit">Run MorphIt</button>
-    <button id="dl" type="button" disabled>Download JSON</button>
-    <span id="status" class="status"></span>
-  </div>
-</form>
+  <form id="f" class="card">
+    <div class="grid">
+      <label class="field full">
+        <span>Mesh file</span>
+        <input type="file" name="mesh" accept=".obj,.stl,.ply" required>
+      </label>
+      <label class="field full">
+        <span>Variant</span>
+        <select name="variant">
+          <option value="MorphIt-B" selected>MorphIt-B — balanced</option>
+          <option value="MorphIt-V">MorphIt-V — volume</option>
+          <option value="MorphIt-S">MorphIt-S — surface</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Num spheres</span>
+        <input type="number" name="num_spheres" min="1" max="200" value="20">
+      </label>
+      <label class="field">
+        <span>Iterations</span>
+        <input type="number" name="iterations" min="1" max="1000" value="200">
+      </label>
+    </div>
 
-<pre id="out" hidden></pre>
+    <div class="actions">
+      <button id="go" type="submit" class="btn btn-primary">Run MorphIt</button>
+      <button id="dl" type="button" class="btn btn-ghost" disabled>Download JSON</button>
+      <span id="status" class="status"></span>
+    </div>
+  </form>
+
+  <pre id="out" class="output" hidden></pre>
+</div>
 
 <script>
 const f = document.getElementById('f');
@@ -63,9 +237,10 @@ f.addEventListener('submit', async (e) => {
   out.hidden = true;
   out.textContent = '';
   status.textContent = '';
-  status.classList.remove('err');
+  status.classList.remove('err', 'ok');
   go.disabled = true;
   dl.disabled = true;
+  f.classList.add('running');
   if (lastBlobUrl) { URL.revokeObjectURL(lastBlobUrl); lastBlobUrl = null; }
 
   const fd = new FormData(f);
@@ -87,6 +262,7 @@ f.addEventListener('submit', async (e) => {
     out.textContent = text;
     out.hidden = false;
     const dt = ((performance.now() - t0) / 1000).toFixed(1);
+    status.classList.add('ok');
     status.textContent = `Done in ${dt}s.`;
     lastBlobUrl = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
     dl.disabled = false;
@@ -95,6 +271,7 @@ f.addEventListener('submit', async (e) => {
     status.textContent = String(err);
   } finally {
     go.disabled = false;
+    f.classList.remove('running');
   }
 });
 
