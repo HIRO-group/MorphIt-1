@@ -19,7 +19,11 @@ WORKDIR /app
 
 # CPU torch first so the dependency resolver does not pull CUDA wheels.
 # Pin matches the GPU version used in requirements.txt for parity.
-RUN pip install torch==2.7.1+cpu --index-url https://download.pytorch.org/whl/cpu
+# `--extra-index-url` (not `--index-url`) keeps PyPI as the primary index;
+# pip 25+ rejects the torch index's typing-extensions wheel because its
+# metadata Name is `typing_extensions` (underscore) while the requirement
+# uses a hyphen — letting PyPI serve transitive deps avoids the mismatch.
+RUN pip install torch==2.7.1+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 
 COPY requirements-docker.txt ./
 RUN pip install -r requirements-docker.txt
