@@ -6,7 +6,6 @@ on:
     paths:
       - "src/**"
       - "web/**"
-      - "k8s/**"
       - "Dockerfile"
       - ".dockerignore"
       - "requirements-docker.txt"
@@ -51,7 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: actions/checkout@v4
       - uses: azure/setup-kubectl@v4
         with:
           version: v1.29.0
@@ -62,12 +60,11 @@ jobs:
           mkdir -p "$HOME/.kube"
           echo "${KUBECONFIG_B64}" | base64 -d > "$HOME/.kube/config"
           chmod 600 "$HOME/.kube/config"
-      - name: Apply manifests
-        run: |
-          kubectl apply -f k8s/namespace.yaml
-          kubectl -n "$KUBE_NAMESPACE" apply -f k8s/deployment.yaml
-          kubectl -n "$KUBE_NAMESPACE" apply -f k8s/service.yaml
-          kubectl -n "$KUBE_NAMESPACE" apply -f k8s/ingress.yaml
+      # The kubeconfig points at the morphit-deployer ServiceAccount, which
+      # is scoped (via k8s/deployer.yaml) to patch only the `morphit`
+      # Deployment in the `morphit` namespace. Bootstrap of the namespace,
+      # Deployment, Service, Ingress, and the deployer SA itself is done
+      # one-time out-of-band with admin credentials.
       - name: Roll forward to this commit's image
         run: |
           kubectl -n "$KUBE_NAMESPACE" set image deployment/$DEPLOYMENT_NAME \

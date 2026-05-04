@@ -37,7 +37,8 @@ FROM python:3.10-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH=/app/src
+    PYTHONPATH=/app/src \
+    MPLBACKEND=Agg
 
 WORKDIR /app
 

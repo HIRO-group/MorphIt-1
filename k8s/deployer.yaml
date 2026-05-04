@@ -1,0 +1,62 @@
+# Least-privilege identity used by the GitHub Actions deploy workflow.
+#
+# Scope: morphit namespace only. The SA can patch (and observe rollout of)
+# exactly the `morphit` Deployment — nothing else. It cannot read Secrets,
+# touch Services/Ingresses, create new Deployments, or see anything in
+# other namespaces.
+#
+# Bootstrap (one-time, with cluster-admin creds):
+#   kubectl create namespace morphit          # if not already created
+#   kubectl apply -f k8s/deployer.yaml
+#   kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml -f k8s/ingress.yaml
+#
+# Then mint KUBECONFIG_B64 from the SA token (see README) and store as a
+# GitHub Actions secret.
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: morphit-deployer
+  namespace: morphit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: morphit-deployer
+  namespace: morphit
+rules:
+  # `kubectl set image deployment/morphit ...` -> patch on this one Deployment.
+  # `kubectl rollout status deploy/morphit`    -> get + watch on this Deployment.
+  # resourceNames pins it to the single Deployment named "morphit"; the SA
+  # cannot affect any other workload even if one is added to this namespace.
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["morphit"]
+    verbs: ["get", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: morphit-deployer
+  namespace: morphit
+subjects:
+  - kind: ServiceAccount
+    name: morphit-deployer
+    namespace: morphit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: morphit-deployer
+---
+# Long-lived ServiceAccount token. Required because k8s >= 1.24 no longer
+# auto-creates SA token Secrets — `kubectl create token` only mints
+# short-lived ones, which is awkward for CI. This explicit Secret is read
+# once when generating KUBECONFIG_B64.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: morphit-deployer-token
+  namespace: morphit
+  annotations:
+    kubernetes.io/service-account.name: morphit-deployer
+type: kubernetes.io/service-account-token
