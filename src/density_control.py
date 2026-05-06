@@ -13,6 +13,8 @@ import torch.nn.functional as F
 import numpy as np
 from typing import Tuple, List, Dict
 
+from inside_mesh import check_mesh_contains
+
 
 def _inverse_softplus(x: torch.Tensor) -> torch.Tensor:
     """Inverse of softplus: log(exp(x) - 1). Numerically stable."""
@@ -131,9 +133,17 @@ class DensityController:
         """
         n = len(self.model.radii)
 
+        # Identify bad spheres (collapsed-tiny or escaped-outside) up
+        # front. They are force-removed regardless of marginal value;
+        # if more bad spheres exist than the temperature schedule would
+        # otherwise cull, we widen the cull to include all of them.
+        bad_mask = self._identify_bad_spheres()
+        n_bad = int(bad_mask.sum().item())
+
         # Count-preserving: cull k, add k. Always keep ≥1 survivor so the
         # marginal-value ranking and the re-seed have a reference pack.
-        k = max(1, int(self.target_count * self.temperature))
+        k_temp = max(1, int(self.target_count * self.temperature))
+        k = max(k_temp, n_bad)
         k = min(k, self.target_count - 1, n - 1)
 
         if k <= 0:
@@ -143,8 +153,12 @@ class DensityController:
         print(f"\n{'=' * 50}")
         print(f"COUNT-PRESERVING RE-PACK (temperature={self.temperature:.3f})")
         print(f"{'=' * 50}")
-        print(f"Culling and re-seeding {k}/{n} spheres  "
-              f"(target={self.target_count}, preserved)")
+        # One-line cull breakdown: total / bad-forced / score-driven.
+        # Grep-friendly tag "[cull]" for log scanning across many runs.
+        n_score = k - n_bad
+        print(f"[cull] {k}/{n} spheres → reseed {k}  "
+              f"(bad: {n_bad} [tiny/outside], by score: {n_score}; "
+              f"target={self.target_count}, preserved)")
 
         # --- Score: marginal value of each sphere ---
         values = self._compute_marginal_values()
@@ -152,6 +166,13 @@ class DensityController:
             f"Marginal values: min={values.min():.4f}, "
             f"max={values.max():.4f}, mean={values.mean():.4f}"
         )
+
+        # Bad spheres are pinned to the bottom of the ranking so they
+        # always land inside the cull window, regardless of how lucky
+        # their current marginal-value score happens to be.
+        if n_bad > 0:
+            values = values.clone()
+            values[bad_mask] = float("-inf")
 
         # --- Cull: remove the k lowest-value spheres ---
         # Work in real-radius space (post-softplus).
@@ -205,6 +226,53 @@ class DensityController:
     # ------------------------------------------------------------------
     # Core algorithms
     # ------------------------------------------------------------------
+
+    def _identify_bad_spheres(self) -> torch.Tensor:
+        """
+        Mark spheres for force-removal regardless of marginal value:
+
+          1. **Tiny radius** — radius below
+             ``density_control_min_radius_fraction * mesh.scale``. These
+             spheres collapsed during optimization (typically driven down
+             by overlap or boundary pressure) and contribute essentially
+             zero coverage. The reseed step seeds new spheres at the
+             survivor median, so the cleanup is constructive.
+
+          2. **Center outside the mesh** — distinct from "sphere bulges
+             past the surface" (which V intentionally allows via low
+             ``boundary_weight``). A sphere whose *center* has drifted
+             out is hemorrhaging coverage on both sides of the mesh
+             boundary and should be reseeded back into a useful gap.
+
+        Returns:
+            ``[num_spheres]`` bool tensor; True = should be culled.
+        """
+        with torch.no_grad():
+            radii = self.model.radii
+            mesh = self.model.query_mesh
+
+            min_radius = (
+                float(self.config.training.density_control_min_radius_fraction)
+                * float(mesh.scale)
+            )
+            too_small = radii < min_radius
+
+            # check_mesh_contains operates on numpy points + a trimesh.
+            centers_np = self.model.centers.detach().cpu().numpy()
+            try:
+                inside_np = check_mesh_contains(mesh, centers_np)
+                inside = torch.from_numpy(np.asarray(inside_np)).to(
+                    device=self.device, dtype=torch.bool
+                )
+                outside = ~inside
+            except Exception as exc:  # pragma: no cover — defensive
+                # Don't let a containment query failure block density
+                # control entirely; just skip the outside-mesh rule.
+                print(f"  outside-mesh check failed ({exc}); "
+                      f"skipping outside-mesh cull")
+                outside = torch.zeros_like(too_small, dtype=torch.bool)
+
+            return too_small | outside
 
     def _compute_marginal_values(self) -> torch.Tensor:
         """

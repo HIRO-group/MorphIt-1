@@ -1,5 +1,7 @@
 # MorphIt: Flexible Spherical Approximation of Robot Morphology
 
+[Live demo](https://morphit.nataliya.dev/) &nbsp;|&nbsp; [Paper (arXiv)](https://arxiv.org/abs/2507.14061)
+
 <img src="imgs/overview.png" alt="MorphIt Overview" width="500">
 
 MorphIt is a novel algorithm for approximating robot morphology using spherical primitives that balances geometric accuracy with computational efficiency. Unlike existing approaches that rely on either labor-intensive manual specification or inflexible computational methods, MorphIt implements an automatic gradient-based optimization framework with tunable parameters that provides explicit control over the physical fidelity versus computational cost tradeoff.

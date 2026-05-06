@@ -4,10 +4,12 @@ Training module for MorphIt sphere packing optimization.
 
 import torch
 import torch.nn as nn
+import numpy as np
 import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from inside_mesh import check_mesh_contains
 from losses import MorphItLosses
 from density_control import DensityController
 from convergence_tracker import ConvergenceTracker
@@ -313,10 +315,31 @@ class MorphItTrainer:
         if hasattr(self.model, "render_thread"):
             self.model.stop_render_thread()
 
-        # No final prune: density control is count-preserving by design,
-        # so the post-training sphere count must equal num_spheres.
-        # A radius/inside-mesh prune here would silently violate that
-        # invariant and break user expectations.
+        # ── BAND-AID ─────────────────────────────────────────────────────
+        # TODO(escaped-sphere prune): the optimizer occasionally pushes a
+        # sphere's center outside the mesh between density-control passes
+        # (most often with MorphIt-S, where boundary_weight is very high
+        # and mesh_containment_weight is 0). Density control catches and
+        # reseeds these every few hundred iters, but anything that escapes
+        # *after* the last density-control pass survives until training
+        # ends. Until we fix the underlying gradient (likely via a
+        # non-zero mesh_containment_weight or a hard projection step),
+        # we sweep the survivors here so users never see escaped spheres
+        # in the output URDF.
+        #
+        # Side effect to be aware of: this can drop the final sphere
+        # count below the user's requested num_spheres. Density control
+        # is count-preserving on its own; this band-aid is the only thing
+        # that breaks that invariant.
+        #
+        # To remove this once the underlying loss is fixed: delete the
+        # call to `_prune_escaped_spheres()` below and the method itself.
+        n_pruned = self._prune_escaped_spheres()
+        if n_pruned > 0:
+            print(f"\n[final prune] removed {n_pruned} sphere(s) whose centers "
+                  f"drifted outside the mesh during the last training segment "
+                  f"(see TODO(escaped-sphere prune) in training.py)")
+        # ── END BAND-AID ─────────────────────────────────────────────────
 
         # Log final state
         self.evolution_logger.log_spheres(self.model, self.current_iteration, "final")
@@ -324,6 +347,55 @@ class MorphItTrainer:
 
         # Print summary
         self._print_training_summary()
+
+    def _prune_escaped_spheres(self) -> int:
+        """Strip spheres whose centers are outside the mesh. Returns count.
+
+        TODO(escaped-sphere prune): see comment in _finalize_training.
+        This method exists only to mask a real loss-side bug; remove
+        when the gradient pipeline keeps every sphere center inside the
+        mesh on its own.
+        """
+        with torch.no_grad():
+            centers_np = self.model.centers.detach().cpu().numpy()
+            try:
+                inside = check_mesh_contains(self.model.query_mesh, centers_np)
+            except Exception as exc:
+                # Containment query failure is rare but should not block
+                # finalization. Skip the prune and log; spheres just stay
+                # wherever they ended up.
+                print(f"[final prune] containment check failed ({exc}); "
+                      f"skipping escaped-sphere prune")
+                return 0
+
+            keep_mask = torch.from_numpy(np.asarray(inside, dtype=bool)).to(
+                device=self.model.device, dtype=torch.bool
+            )
+            n_remove = int((~keep_mask).sum().item())
+            if n_remove == 0:
+                return 0
+
+            # Need ≥1 sphere left for downstream code (and a no-sphere
+            # URDF is useless anyway). If pruning would empty the pack,
+            # leave the least-bad sphere behind and warn loudly.
+            if int(keep_mask.sum().item()) == 0:
+                print("[final prune] WARNING: every sphere has its center "
+                      "outside the mesh. Keeping the closest one to avoid "
+                      "an empty packing; the result will not be useful.")
+                # Pick the sphere whose center is least-far-outside.
+                # We don't have signed distances, so fall back to keeping
+                # index 0.
+                keep_mask[0] = True
+                n_remove = int((~keep_mask).sum().item())
+
+            self.model._centers = nn.Parameter(
+                self.model._centers.data[keep_mask].clone()
+            )
+            self.model._radii = nn.Parameter(
+                self.model._radii.data[keep_mask].clone()
+            )
+            self.model.num_spheres = int(keep_mask.sum().item())
+            return n_remove
 
     def _print_training_summary(self):
         """Print training summary."""

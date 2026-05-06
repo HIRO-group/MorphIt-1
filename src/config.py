@@ -30,7 +30,7 @@ class ModelConfig:
 class TrainingConfig:
     """Training configuration parameters."""
 
-    iterations: int = 50
+    iterations: int = 300
     verbose_frequency: int = 50
 
     # Logging the packing evolution
@@ -38,8 +38,8 @@ class TrainingConfig:
 
     # Optimizer parameters. radius_lr is in raw (pre-softplus) space — the
     # effective step on the real radius is sigmoid(raw_r) * lr.
-    center_lr: float = 0.0002
-    radius_lr: float = 0.0001
+    center_lr: float = 0.001
+    radius_lr: float = 0.002
     grad_clip_norm: float = 1.0
 
     # Loss weights - can be overridden by get_config()
@@ -49,15 +49,15 @@ class TrainingConfig:
     surface_weight: float = 5.0
     containment_weight: float = 5.0
     sqem_weight: float = 800.0
-    mass_weight: float = 1.0
-    com_weight: float = 1.0
-    inertia_weight: float = 1.0
+    mass_weight: float = 0.0
+    com_weight: float = 0.0
+    inertia_weight: float = 0.0
     # flatness_loss has a Python for-loop over face groups that forces
     # per-iteration GPU→CPU sync, roughly doubling per-iter cost. It is
     # not in the paper's 6-loss formulation — disabled by default.
     flatness_weight: float = 0.0
-    hausdorff_weight: float = 500.0
-    mesh_containment_weight: float = 50.0
+    hausdorff_weight: float = 0.0
+    mesh_containment_weight: float = 0.0
 
     # Early stopping parameters
     early_stopping: bool = False
@@ -66,7 +66,7 @@ class TrainingConfig:
 
     # Density control parameters
     density_control_enabled: bool = True
-    density_control_min_interval: int = 100
+    density_control_min_interval: int = 160
     density_control_patience: int = 1
     density_control_grad_threshold: float = 1e-4
     # Warmup: mini-optimization over only the freshly-placed spheres,
@@ -76,6 +76,12 @@ class TrainingConfig:
     # Cooling: each pass replaces a smaller fraction (temperature * cooling).
     # Set to 1.0 to hold temperature constant across passes.
     density_control_cooling_factor: float = 0.85
+    # Force-remove spheres during density control whose radius falls below
+    # this fraction of the mesh scale, OR whose center has drifted outside
+    # the mesh. Catches collapsed / escaped spheres that the marginal-value
+    # scoring on its own can leave in place if they happen to sit on a
+    # locally-unique gap.
+    density_control_min_radius_fraction: float = 0.001
 
 
 @dataclass
@@ -137,46 +143,46 @@ class MorphItConfig:
 # Alternative loss weight configurations
 LOSS_WEIGHT_CONFIGS = {
     "MorphIt-V": {
-        "coverage_weight": 4000.0,
+        "coverage_weight": 5000.0,
         "overlap_weight": 0.1,
-        "boundary_weight": 10.0,
+        "boundary_weight": 1.0,
         "surface_weight": 0.1,
-        "containment_weight": 50.0,
-        "sqem_weight": 100.0,
-        "mass_weight": 1.0,
-        "com_weight": 1.0,
-        "inertia_weight": 1.0,
-        "flatness_weight": 0.0,
-        "hausdorff_weight": 500.0,
-        "mesh_containment_weight": 50.0,
-    },
-    "MorphIt-S": {
-        "coverage_weight": 0.01,
-        "overlap_weight": 0.01,
-        "boundary_weight": 5000.0,
-        "surface_weight": 100.0,
         "containment_weight": 1.0,
-        "sqem_weight": 1000.0,
-        "mass_weight": 1.0,
-        "com_weight": 1.0,
-        "inertia_weight": 1.0,
-        "flatness_weight": 0.0,
-        "hausdorff_weight": 500.0,
-        "mesh_containment_weight": 50.0,
-    },
-    "MorphIt-B": {
-        "coverage_weight": 100.0,
-        "overlap_weight": 1.0,
-        "boundary_weight": 0.0,
-        "surface_weight": 1.0,
-        "containment_weight": 1.0,
-        "sqem_weight": 1.0,
+        "sqem_weight": 10.0,
         "mass_weight": 0.0,
         "com_weight": 0.0,
         "inertia_weight": 0.0,
         "flatness_weight": 0.0,
-        "hausdorff_weight": 500.0,
-        "mesh_containment_weight": 50.0,
+        "hausdorff_weight": 0.0,
+        "mesh_containment_weight": 10.0,
+    },
+    "MorphIt-S": {
+        "coverage_weight": 0.01,
+        "overlap_weight": 0.01,
+        "boundary_weight": 1000.0,
+        "surface_weight": 10.0,
+        "containment_weight": 1.0,
+        "sqem_weight": 1000.0,
+        "mass_weight": 0.0,
+        "com_weight": 0.0,
+        "inertia_weight": 0.0,
+        "flatness_weight": 0.0,
+        "hausdorff_weight": 10.0,
+        "mesh_containment_weight": 500.0,
+    },
+    "MorphIt-B": {
+        "coverage_weight": 1500.0,
+        "overlap_weight": 0.3,
+        "boundary_weight": 1.0,
+        "surface_weight": 50.0,
+        "containment_weight": 10.0,
+        "sqem_weight": 3000.0,
+        "mass_weight": 0.0,
+        "com_weight": 0.0,
+        "inertia_weight": 0.0,
+        "flatness_weight": 0.0,
+        "hausdorff_weight": 0.0,
+        "mesh_containment_weight": 10.0,
     },
 }
 
