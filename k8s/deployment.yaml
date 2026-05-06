@@ -31,20 +31,28 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          # Probes are intentionally tolerant. /pack-link now runs MorphIt
+          # in a worker thread (asyncio.to_thread), but an unlucky garbage
+          # collect or mesh load can still pause the event loop for a
+          # second or two. Pulling the pod from rotation mid-pack causes
+          # 503s on the next /pack-link call, so failureThreshold buys
+          # ~3 minutes of probe failures before kubernetes acts.
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
-            timeoutSeconds: 3
+            timeoutSeconds: 5
+            failureThreshold: 18    # ~3 min (10s × 18) before unready
           livenessProbe:
             httpGet:
               path: /healthz
               port: http
             initialDelaySeconds: 30
             periodSeconds: 30
-            timeoutSeconds: 5
+            timeoutSeconds: 10
+            failureThreshold: 6     # ~3 min before restart
           resources:
             requests:
               cpu: "250m"

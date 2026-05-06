@@ -17,6 +17,7 @@ Suitable for small meshes / short iteration counts; upgrade to a job queue
 if request durations get long enough to hit ingress/proxy timeouts.
 """
 
+import asyncio
 import json as _json
 import shutil
 import sys
@@ -263,9 +264,14 @@ async def morph(
             updates["random_seed"] = seed
         config = update_config_from_dict(get_config(variant), updates)
 
-        model = MorphIt(config)
-        train_morphit(model)
-        model.save_results()
+        # Training is a synchronous PyTorch loop. Pushing it to a thread
+        # keeps the event loop free for /healthz, so the readiness probe
+        # doesn't fail and the ingress doesn't drop the pod mid-pack.
+        def _run_morphit() -> None:
+            model = MorphIt(config)
+            train_morphit(model)
+            model.save_results()
+        await asyncio.to_thread(_run_morphit)
 
         # Hand the centers/radii JSON to the URDF generator. load_inputs
         # reads from disk, computes the centroid-relative positions, and
@@ -567,7 +573,12 @@ async def robot_pack_link(
 
     advanced_overrides = _parse_advanced(advanced)
 
-    result = pack_one_link(
+    # `pack_one_link` runs MorphIt synchronously. Hand it to a thread so
+    # the event loop stays responsive to /healthz; otherwise long packs
+    # cause readiness-probe timeouts and the ingress 503s subsequent
+    # requests with "no available server".
+    result = await asyncio.to_thread(
+        pack_one_link,
         item,
         variant=variant,
         num_spheres=num_spheres,
@@ -602,7 +613,11 @@ async def robot_assemble(
     output_urdf = session.output_dir / f"{urdf_stem}_spherical.urdf"
     spheres_dir = session.output_dir / "spheres"
 
-    stats = rewrite_urdf(
+    # rewrite_urdf is XML walking + a few file reads; usually milliseconds,
+    # but defensively run in a thread anyway so a slow disk doesn't pin
+    # the event loop.
+    stats = await asyncio.to_thread(
+        rewrite_urdf,
         session.report,
         spheres_dir=spheres_dir,
         output_path=output_urdf,
