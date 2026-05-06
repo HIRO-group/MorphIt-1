@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main, web]
+    branches: [main]
     paths:
       - "src/**"
       - "web/**"
