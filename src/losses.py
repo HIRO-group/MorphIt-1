@@ -37,6 +37,20 @@ class MorphItLosses:
             dtype=torch.float32, device=self.device,
         )
 
+        # Normalization constants for the three physics losses.
+        # Each loss is divided by a fixed ground-truth magnitude so that
+        # weight=1 has the same gradient pressure across objects of any
+        # scale: "100 % relative error => loss=1". Without this the
+        # raw losses span 20+ orders of magnitude across our test set
+        # (bunny ‖I‖² ≈ 1e-4, vase ‖I‖² ≈ 1e25), so a single weight
+        # cannot work for both. Constants only depend on the mesh
+        # ground truth, so we cache them once at construction.
+        _EPS = 1e-20
+        self._mass_norm_sq = float(self.model.mesh_mass) ** 2 + _EPS
+        self._com_norm_sq = float(self.model.query_mesh.scale) ** 2 + _EPS
+        self._inertia_norm_sq = float(
+            torch.sum(self.model.mesh_inertia ** 2).item()) + _EPS
+
     # ------------------------------------------------------------------
     # Individual loss functions (all GPU-native)
     # ------------------------------------------------------------------
@@ -116,79 +130,106 @@ class MorphItLosses:
         topk_dists = torch.topk(torch.relu(closest_dists), k, largest=True)[0]
         return torch.mean(topk_dists ** 2)
 
-    def _compute_mesh_containment_loss(self) -> torch.Tensor:
+    def _compute_mesh_containment_loss(
+        self, surface_dists: torch.Tensor
+    ) -> torch.Tensor:
         """
-        Penalize sphere surface points that protrude outside the mesh.
+        Penalize sphere centers outside the mesh.
 
-        Pure GPU, zero precomputation. For each probe point on each sphere's
-        surface, finds the nearest mesh surface sample and checks whether the
-        probe is on the outside (positive normal direction = outside).
+        Center-only signed-distance form: for each sphere center, locate
+        its nearest surface sample (argmin over the already-built
+        ``surface_dists`` matrix) and project the offset onto that
+        sample's normal. Positive ⇒ center is outside ⇒ squared
+        ReLU penalty.
 
-        Cost: one cdist of [N*6, S] — same order as surface_loss.
+        This replaces the previous 6-probe heuristic. The center-only
+        form is
+
+            • cheaper — argmin + a few elementwise ops on the existing
+              ``surface_dists`` [S, N], no new ``cdist``;
+            • geometrically proper — a true signed-distance-from-surface
+              quantity rather than 6 axis-aligned probe heuristics;
+            • equivalent in gradient magnitude on fully-escaped spheres
+              (6 probes × 1/(N·6) = 1/N, same as the center-only term).
+
+        Surface-protrusion (sphere bulging past the boundary with center
+        still inside) is already handled by ``boundary_penalty`` (engulfed
+        surface samples) and ``sqem_loss`` (squared surface mismatch), so
+        nothing of value is lost in the swap.
         """
         centers = self.model.centers        # [N, 3]
-        radii = self.model.radii            # [N]
         surf = self.model.surface_samples   # [S, 3]
         norms = self.model.surface_normals  # [S, 3]
 
-        # Probe points on sphere surfaces: [N, 6, 3]
-        probe_pts = (
-            centers.unsqueeze(1)
-            + radii.unsqueeze(1).unsqueeze(2) *
-            self._probe_directions.unsqueeze(0)
-        )
-        pts_flat = probe_pts.reshape(-1, 3)  # [N*6, 3]
+        # surface_dists is [S, N]; argmin along S gives nearest sample
+        # for each center. detach so the argmin doesn't try to backprop.
+        nearest_idx = surface_dists.argmin(dim=0).detach()  # [N]
+        nearest_surf = surf[nearest_idx]                     # [N, 3]
+        nearest_normal = norms[nearest_idx]                  # [N, 3]
 
-        # Find nearest surface sample for each probe point: [N*6, S]
-        dists = torch.cdist(pts_flat, surf)
-        nearest_idx = torch.argmin(dists, dim=1)  # [N*6]
+        vec = centers - nearest_surf                         # [N, 3]
+        signed_dist = (vec * nearest_normal).sum(dim=1)      # [N]
 
-        # Vector from nearest surface point to probe point
-        nearest_surf_pt = surf[nearest_idx]        # [N*6, 3]
-        nearest_normal = norms[nearest_idx]         # [N*6, 3]
-        vec_to_probe = pts_flat - nearest_surf_pt   # [N*6, 3]
-
-        # Signed distance: positive = outside the mesh surface
-        signed_dist = torch.sum(vec_to_probe * nearest_normal, dim=1)  # [N*6]
-
-        # Penalize only outside protrusion
         return torch.mean(torch.relu(signed_dist) ** 2)
 
     def _compute_mass_loss(self) -> torch.Tensor:
-        """Sphere-pack total mass vs mesh mass."""
-        sphere_volumes = FOUR_THIRDS_PI * (self.model.radii ** 3)
-        total_mass = self.model.config.model.density * sphere_volumes.sum()
-        return (total_mass - self.model.mesh_mass) ** 2
+        """Relative mass error squared: ((m_sphere - m_mesh) / m_mesh)².
+
+        Dimensionless. Weight=1 ↔ a 100 % mass error contributes 1.0 to
+        the total loss, so the same weight is meaningful across objects
+        of very different scales (bunny ≈ 2 kg vs vase ≈ 1e9 kg).
+
+        Reads from model.masses (uniform-density default: density × volume).
+        """
+        total_mass = self.model.masses.sum()
+        return (total_mass - self.model.mesh_mass) ** 2 / self._mass_norm_sq
 
     def _compute_com_loss(self) -> torch.Tensor:
-        """Sphere-pack CoM vs mesh CoM."""
-        sphere_volumes = FOUR_THIRDS_PI * (self.model.radii ** 3)
-        sphere_masses = self.model.config.model.density * sphere_volumes
+        """Squared COM offset normalized by mesh-bbox-diagonal squared.
+
+        Returns ‖com_sphere − com_mesh‖² / mesh.scale². Dimensionless.
+        Weight=1 ↔ a COM offset equal to one full bounding-box diagonal
+        contributes 1.0; a 1 % offset contributes 1e-4.
+        """
+        sphere_masses = self.model.masses
         total_mass = sphere_masses.sum()
         com = (sphere_masses.unsqueeze(1) *
                self.model.centers).sum(dim=0) / total_mass
-        return torch.sum((com - self.model.mesh_com) ** 2)
+        return torch.sum((com - self.model.mesh_com) ** 2) / self._com_norm_sq
 
     def _compute_inertia_loss(self) -> torch.Tensor:
-        """Parallel-axis inertia tensor, fully vectorized."""
+        """Frobenius-relative inertia error, computed about the sphere
+        body's own COM so the comparison is frame-consistent with
+        ``trimesh.moment_inertia`` (which is about the mesh centroid).
+
+        Earlier version expressed sphere centers in the WORLD frame and
+        applied parallel-axis from the origin; this introduced a
+        systematic ~m·d² term unrelated to packing quality whenever
+        mesh COM ≠ origin. For the vase (z-COM = 73 m) the bias was
+        ~3.8× the true Frobenius gap. Centering on the sphere COM
+        removes the bias; the residual is then the true intrinsic
+        inertia mismatch between the two bodies.
+
+        Returns ‖I_sphere(COM) − I_mesh(COM)‖²_F / ‖I_mesh‖²_F —
+        dimensionless. Weight=1 ↔ a 100 % Frobenius error gives 1.0.
+        """
         radii = self.model.radii
         centers = self.model.centers
-        density = self.model.config.model.density
+        m = self.model.masses
 
-        m = density * FOUR_THIRDS_PI * (radii ** 3)
+        sphere_com = (m.unsqueeze(1) * centers).sum(dim=0) / m.sum()
+        centered = centers - sphere_com  # express each center wrt sphere COM
 
         I_body_scalar = (TWO_FIFTHS * m * radii ** 2).sum()
-
-        c_sq = (centers * centers).sum(dim=1)
+        c_sq = (centered * centered).sum(dim=1)
         trace_term = (m * c_sq).sum()
-
-        weighted_centers = m.unsqueeze(1) * centers
-        outer_sum = weighted_centers.T @ centers
+        weighted_centers = m.unsqueeze(1) * centered
+        outer_sum = weighted_centers.T @ centered
 
         eye3 = torch.eye(3, device=self.device)
         I = (I_body_scalar + trace_term) * eye3 - outer_sum
 
-        return torch.sum((I - self.model.mesh_inertia) ** 2)
+        return torch.sum((I - self.model.mesh_inertia) ** 2) / self._inertia_norm_sq
 
     def _compute_flatness_loss(self, surface_dists: torch.Tensor) -> torch.Tensor:
         """
@@ -302,7 +343,7 @@ class MorphItLosses:
             "containment_loss":      zero if _skip("containment_loss") else self._compute_containment_loss(pairwise_dists),
             "sqem_loss":             zero if _skip("sqem_loss") else self._compute_sqem_loss(surface_dists),
             "hausdorff_loss":        zero if _skip("hausdorff_loss") else self._compute_hausdorff_surface_loss(surface_dists),
-            "mesh_containment_loss": zero if _skip("mesh_containment_loss") else self._compute_mesh_containment_loss(),
+            "mesh_containment_loss": zero if _skip("mesh_containment_loss") else self._compute_mesh_containment_loss(surface_dists),
             "mass_loss":             zero if _skip("mass_loss") else self._compute_mass_loss(),
             "com_loss":              zero if _skip("com_loss") else self._compute_com_loss(),
             "inertia_loss":          zero if _skip("inertia_loss") else self._compute_inertia_loss(),

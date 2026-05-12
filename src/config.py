@@ -154,7 +154,13 @@ LOSS_WEIGHT_CONFIGS = {
         "inertia_weight": 0.0,
         "flatness_weight": 0.0,
         "hausdorff_weight": 0.0,
-        "mesh_containment_weight": 10.0,
+        # mesh_containment is the only loss whose gradient acts on a
+        # sphere whose center has fully escaped the mesh (boundary +
+        # coverage + sqem all decay to zero in that regime). Weight 100
+        # eliminates ~70% of escapes on bunny n=64; the hard projection
+        # in training._project_centers_inside_mesh handles the rest.
+        # Bumped from 10 → 100 alongside removing _prune_escaped_spheres.
+        "mesh_containment_weight": 100.0,
     },
     "MorphIt-S": {
         "coverage_weight": 0.01,

@@ -306,6 +306,17 @@ class MorphIt(nn.Module):
             _inverse_softplus(torch.tensor(value, device=self.device))
         )
 
+    @property
+    def masses(self) -> torch.Tensor:
+        """Per-sphere mass (kg), derived from uniform density × (4/3)π·r³.
+
+        All physics losses (mass_loss, com_loss, inertia_loss) read from
+        here so the per-sphere mass formulation can be swapped at the
+        model layer without touching the loss code.
+        """
+        FOUR_THIRDS_PI = (4.0 / 3.0) * 3.141592653589793
+        return self.config.model.density * FOUR_THIRDS_PI * (self.radii ** 3)
+
     def save_results(self, filename: Optional[str] = None) -> None:
         """
         Save sphere centers and radii to JSON file.

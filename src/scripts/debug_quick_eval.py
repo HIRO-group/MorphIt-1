@@ -32,29 +32,36 @@ from morphit import MorphIt  # noqa: E402
 from training import train_morphit  # noqa: E402
 
 
-# ─── Grid (small: 2 links × 2 sizes × N variants) ────────────────────
-LINKS = ("link0", "link6")
-N_SPHERES = (6, 64)
-# Pick from {"morphit-v", "morphit-s", "morphit-b"} or all three.
-VARIANTS = ("morphit-v",)
+# ─── Grid ────────────────────────────────────────────────────────────
+# Each LINK entry is (label, path_relative_to_mesh_models). Labels feed
+# the metrics table; paths point at the actual .obj used for training
+# and held-out eval.
+LINKS = (
+    ("link0", "fr3/collision/link0.obj"),
+    ("bunny", "bunny.obj"),
+)
+N_SPHERES = (100, 200)
+# Pick from {"morphit-v", "morphit-s", "morphit-b"} or any subset.
+VARIANTS = ("morphit-v", "morphit-s")
 
 # ─── Training knobs ──────────────────────────────────────────────────
 ITERATIONS = 300
-DENSITY_CONTROL = False  # flip True to exercise the full pipeline
+DENSITY_CONTROL = True  # flip False to time pure Adam without re-packing
 
 # Per-iteration cost is ~5 ms on a recent GPU at n=64 — keep in mind when
 # growing the grid. flatness_loss has a per-iter Python loop so it is left
-# disabled here; aux losses (mass/com/inertia, hausdorff, mesh_containment)
-# are also off so the loss matches the paper's 6-loss formulation.
+# disabled here; mass/com/inertia and hausdorff are zeroed so the loss
+# matches the paper's geometry-only formulation. mesh_containment is
+# intentionally NOT zeroed — V's containment relies on it (see
+# debug_v_escape.py for the sweep that pins this).
 COMMON_PARAMS = {
     "model.num_inside_samples": 5000,
     "model.num_surface_samples": 5000,
     "training.verbose_frequency": 500,
     "training.density_control_enabled": DENSITY_CONTROL,
-    "training.density_control_min_interval": 80,
+    "training.density_control_min_interval": 160,
     "training.flatness_weight": 0.0,
     "training.hausdorff_weight": 0.0,
-    "training.mesh_containment_weight": 0.0,
     "training.mass_weight": 0.0,
     "training.com_weight": 0.0,
     "training.inertia_weight": 0.0,
@@ -96,7 +103,7 @@ VARIANT_WEIGHTS = {
     },
 }
 
-MESH_DIR = SRC.parent / "mesh_models/fr3/collision"
+MESH_ROOT = SRC.parent / "mesh_models"
 DEBUG_RESULTS = SRC / "results" / "debug_quick_eval"
 
 # ─── Eval config ─────────────────────────────────────────────────────
@@ -115,14 +122,15 @@ def _sync_clock() -> float:
     return time.perf_counter()
 
 
-def train_one(variant_name: str, mesh_path: Path,
+def train_one(variant_name: str, link_label: str, mesh_path: Path,
               n_spheres: int, out_dir: Path):
     """Train one (variant, mesh, n) configuration and dump result JSON.
 
+    The output filename uses ``link_label`` (not ``mesh_path.stem``) so
+    meshes that share a stem but live in different folders don't collide.
     Returns (init_time_s, optimize_time_s) or None if cached.
     """
-    name = mesh_path.stem
-    out_file = out_dir / f"{name}.json"
+    out_file = out_dir / f"{link_label}.json"
     if out_file.exists():
         return None
 
@@ -137,7 +145,7 @@ def train_one(variant_name: str, mesh_path: Path,
     }
     config = update_config_from_dict(config, updates)
     config.results_dir = str(out_dir)
-    config.output_filename = f"{name}.json"
+    config.output_filename = f"{link_label}.json"
 
     t0 = _sync_clock()
     model = MorphIt(config)
@@ -153,11 +161,13 @@ def train_one(variant_name: str, mesh_path: Path,
 
 # ─── Evaluation ──────────────────────────────────────────────────────
 
-def load_link_artifacts(link: str):
+def load_link_artifacts(mesh_path: Path):
     """Sample held-out surface + volume points for evaluation. Sampling
     seed is fixed so re-running gives identical eval points (only the
-    training pass is stochastic)."""
-    mesh = trimesh.load(str(MESH_DIR / f"{link}.obj"), force="mesh")
+    training pass is stochastic). The held-out mesh handle is kept on
+    the artifact dict so the escape-count metric can call ``.contains``
+    on it directly."""
+    mesh = trimesh.load(str(mesh_path), force="mesh")
     if isinstance(mesh, trimesh.Scene):
         mesh = trimesh.util.concatenate(mesh.dump())
 
@@ -177,7 +187,8 @@ def load_link_artifacts(link: str):
         e = min(s + 5000, len(vol))
         inside[s:e] = mesh.contains(vol[s:e])
 
-    return {"mesh_volume": float(mesh.volume),
+    return {"mesh": mesh, "mesh_volume": float(mesh.volume),
+            "mesh_scale": float(mesh.scale),
             "sample_volume": sample_volume,
             "surface": surf, "volume": vol, "is_inside_mesh": inside}
 
@@ -236,6 +247,30 @@ def volume_overlap_metrics(art, centers, radii):
     return both_vol / mv, out_vol / mv, sphere_vol / mv
 
 
+def escape_metrics(art, centers, radii):
+    """Count packing pathologies that the density-control bad-sphere
+    rule targets:
+
+      • ``n_out``  — sphere centers strictly outside the mesh. These
+        are the spheres ``_prune_escaped_spheres`` would strip at end
+        of training (and ``_identify_bad_spheres`` would reseed mid-
+        training). A nonzero count after training implies a gradient
+        path is still pushing centers out faster than density control
+        can pull them back in.
+      • ``n_tiny`` — radii below 0.001 × mesh.scale (matching the
+        ``density_control_min_radius_fraction`` default). Tiny spheres
+        contribute essentially zero coverage and indicate radius
+        collapse from overlap / boundary pressure.
+    """
+    centers = np.asarray(centers, dtype=np.float64)
+    radii = np.asarray(radii, dtype=np.float64)
+    inside = art["mesh"].contains(centers)
+    n_out = int((~inside).sum())
+    min_radius = 0.001 * art["mesh_scale"]
+    n_tiny = int((radii < min_radius).sum())
+    return n_out, n_tiny
+
+
 def eval_run(results_root, method, n, link, art):
     entry = load_run(results_root, method, n, link)
     if entry is None:
@@ -244,23 +279,33 @@ def eval_run(results_root, method, n, link, art):
         art["surface"], entry["centers"], entry["radii"])
     r_in, r_out, r_uni = volume_overlap_metrics(
         art, entry["centers"], entry["radii"])
-    return {"actual_n": entry["actual_n"], "r_in": r_in, "r_out": r_out,
+    n_out, n_tiny = escape_metrics(art, entry["centers"], entry["radii"])
+    return {"actual_n": entry["actual_n"], "n_out": n_out, "n_tiny": n_tiny,
+            "r_in": r_in, "r_out": r_out,
             "r_uni": r_uni, "d_avg_mm": avg_d * 1000, "d_max_mm": max_d * 1000}
 
 
 # ─── Reporting ───────────────────────────────────────────────────────
 
 HEADER = (f"{'n':>4}  {'link':>6}  {'method':<11}"
-          f"  {'actual':>6}  {'r_in':>7}  {'r_out':>7}  {'r_uni':>7}"
+          f"  {'actual':>6}  {'n_out':>5}  {'n_tiny':>6}"
+          f"  {'r_in':>7}  {'r_out':>7}  {'r_uni':>7}"
           f"  {'d_avg_mm':>9}  {'d_max_mm':>9}")
 
 
-def print_per_link_table(rows):
+def _fmt_row(n, link, variant, r):
+    return (f"{n:>4}  {link:>6}  {variant:<11}"
+            f"  {r['actual_n']:>6}  {r['n_out']:>5}  {r['n_tiny']:>6}"
+            f"  {r['r_in']:>7.3f}  {r['r_out']:>7.3f}  {r['r_uni']:>7.3f}"
+            f"  {r['d_avg_mm']:>9.3f}  {r['d_max_mm']:>9.3f}")
+
+
+def print_per_link_table(rows, link_labels):
     print()
     print(HEADER)
     print("-" * len(HEADER))
     for n in N_SPHERES:
-        for link in LINKS:
+        for link in link_labels:
             for variant in VARIANTS:
                 r = next((r for r in rows if r["n"] == n
                           and r["link"] == link
@@ -268,22 +313,18 @@ def print_per_link_table(rows):
                 if r is None:
                     print(f"{n:>4}  {link:>6}  {variant:<11}  MISSING")
                     continue
-                print(f"{n:>4}  {link:>6}  {variant:<11}"
-                      f"  {r['actual_n']:>6}"
-                      f"  {r['r_in']:>7.3f}  {r['r_out']:>7.3f}"
-                      f"  {r['r_uni']:>7.3f}"
-                      f"  {r['d_avg_mm']:>9.3f}  {r['d_max_mm']:>9.3f}")
+                print(_fmt_row(n, link, variant, r))
             print()
 
 
 def print_averaged_table(rows):
-    print("=" * 100)
+    print("=" * 110)
     print("  Averaged across links. Paper ordering targets:")
     print("     r_in :  V > B > S   (V ~ 1)")
     print("     r_out:  V > B > S   (S ~ 0)")
     print("     r_uni:  V > B > S   (B ~ 1)")
     print("     d_avg:  V > S > B   (B lowest)")
-    print("=" * 100)
+    print("=" * 110)
     print(HEADER)
     for n in N_SPHERES:
         for variant in VARIANTS:
@@ -291,10 +332,12 @@ def print_averaged_table(rows):
             if not sel:
                 continue
             avg = {k: np.mean([r[k] for r in sel])
-                   for k in ("actual_n", "r_in", "r_out", "r_uni",
+                   for k in ("actual_n", "n_out", "n_tiny",
+                             "r_in", "r_out", "r_uni",
                              "d_avg_mm", "d_max_mm")}
             print(f"{n:>4}  {'avg':>6}  {variant:<11}"
                   f"  {avg['actual_n']:>6.1f}"
+                  f"  {avg['n_out']:>5.1f}  {avg['n_tiny']:>6.1f}"
                   f"  {avg['r_in']:>7.3f}  {avg['r_out']:>7.3f}"
                   f"  {avg['r_uni']:>7.3f}"
                   f"  {avg['d_avg_mm']:>9.3f}  {avg['d_max_mm']:>9.3f}")
@@ -319,24 +362,26 @@ def main():
 
     for variant in VARIANTS:
         for n in N_SPHERES:
-            for link in LINKS:
+            for link_label, link_rel in LINKS:
                 out_dir = DEBUG_RESULTS / variant / str(n)
                 out_dir.mkdir(parents=True, exist_ok=True)
-                mesh_path = MESH_DIR / f"{link}.obj"
+                mesh_path = MESH_ROOT / link_rel
                 t0 = time.time()
-                result = train_one(variant, mesh_path, n, out_dir)
+                result = train_one(variant, link_label, mesh_path,
+                                   n, out_dir)
                 wall = time.time() - t0
                 if result is None:
-                    print(f"  {variant:10} n={n:>3} {link} — cached "
-                          f"({wall:.1f}s)")
+                    print(f"  {variant:10} n={n:>3} {link_label} — "
+                          f"cached ({wall:.1f}s)")
                     continue
                 init_time_s, optimize_time_s = result
                 iter_ms = 1000.0 * optimize_time_s / max(1, ITERATIONS)
-                timings.append({"variant": variant, "n": n, "link": link,
+                timings.append({"variant": variant, "n": n,
+                                "link": link_label,
                                 "init_time_s": init_time_s,
                                 "optimize_time_s": optimize_time_s,
                                 "iter_ms": iter_ms})
-                print(f"  {variant:10} n={n:>3} {link} — "
+                print(f"  {variant:10} n={n:>3} {link_label} — "
                       f"init={init_time_s:.2f}s  "
                       f"optimize={optimize_time_s:.2f}s  "
                       f"({iter_ms:.1f} ms/iter)")
@@ -351,18 +396,22 @@ def main():
         print(f"[timing] mean: init={init_mean:.2f}s  "
               f"optimize={opt_mean:.2f}s  {iter_mean:.1f} ms/iter")
 
-    arts = {link: load_link_artifacts(link) for link in LINKS}
+    arts = {label: load_link_artifacts(MESH_ROOT / rel)
+            for label, rel in LINKS}
+    link_labels = [label for label, _ in LINKS]
 
     rows = []
     for n in N_SPHERES:
-        for link in LINKS:
+        for link_label in link_labels:
             for variant in VARIANTS:
-                r = eval_run(DEBUG_RESULTS, variant, n, link, arts[link])
+                r = eval_run(DEBUG_RESULTS, variant, n,
+                             link_label, arts[link_label])
                 if r is None:
                     continue
-                rows.append({"n": n, "link": link, "method": variant, **r})
+                rows.append({"n": n, "link": link_label,
+                             "method": variant, **r})
 
-    print_per_link_table(rows)
+    print_per_link_table(rows, link_labels)
     print_averaged_table(rows)
 
 

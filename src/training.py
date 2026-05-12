@@ -185,6 +185,34 @@ class MorphItTrainer:
         # Update parameters
         self.optimizer.step()
 
+        # ── BAND-AID ────────────────────────────────────────────────
+        # Hard containment projection: snap any sphere whose center
+        # drifted outside the mesh back to the nearest surface point
+        # (just inside, by 1e-4 × mesh.scale). Sample-based: uses the
+        # cached surface_samples + normals, same approximation
+        # mesh_containment_loss uses for its soft penalty.
+        #
+        # Why this is a band-aid: under MorphIt-V's weak boundary
+        # gradients, individual training steps can still push a center
+        # past the mesh surface faster than mesh_containment_loss
+        # pulls it back. The projection clamps each step's overshoot.
+        # The "real" fix would be a gradient pipeline that never
+        # produces an outward step in the first place — that's an open
+        # problem at the loss/optimizer level. Until then, projection
+        # + density-control bad-sphere cull together keep escapes
+        # bounded; the final-iteration prune in _finalize_training
+        # catches whatever survives the last training segment.
+        #
+        # An SDF-based hard projection (ray-cast sign on a precomputed
+        # voxel grid) was tried — it eliminated essentially all escapes
+        # at concave regions like bunny ears, but at +14 % per-iter
+        # cost and a 0.5 MB precomputed grid per mesh. Reverted in
+        # favour of keeping MorphIt "meant to be fast"; the sample
+        # projection + final prune gives the same end-state guarantee
+        # at much lower cost.
+        # ────────────────────────────────────────────────────────────
+        self._project_centers_inside_mesh()
+
         # Calculate timing
         iter_time = time.time() - iter_start_time
 
@@ -195,6 +223,51 @@ class MorphItTrainer:
             "grad_info": grad_info,
             "iter_time": iter_time,
         }
+
+    def _project_centers_inside_mesh(self) -> int:
+        """Sample-based hard projection — BAND-AID. See the long comment
+        at the call site (``_training_step``) for why this is here and
+        what would replace it.
+
+        Geometry: for each sphere center, find its nearest precomputed
+        surface sample, project the offset onto that sample's normal.
+        Positive signed distance ⇒ center is outside the mesh ⇒ move
+        ``(signed_dist + epsilon)`` along ``-normal`` to land ε inside
+        the surface patch. Uses the same approximation as
+        ``mesh_containment_loss`` so the soft penalty and the hard clamp
+        agree on the surface.
+
+        Cost: one ``cdist [N, S]`` (~0.2 ms at N=64, S=5000). Cheaper
+        than ``trimesh.contains`` by ~15×; less robust through sharp
+        concavities (bunny ears) — leaks ~1–6 % of spheres at high N.
+        The final-iteration prune in ``_finalize_training`` catches
+        whatever the projection misses on the last few steps.
+        """
+        with torch.no_grad():
+            centers = self.model._centers.data  # [N, 3]
+            surf = self.model.surface_samples    # [S, 3]
+            norms = self.model.surface_normals   # [S, 3]
+
+            dists = torch.cdist(centers, surf)
+            nearest_idx = dists.argmin(dim=1)
+            nearest_surf = surf[nearest_idx]
+            nearest_normal = norms[nearest_idx]
+
+            vec = centers - nearest_surf
+            signed_dist = (vec * nearest_normal).sum(dim=1)  # +ve = outside
+
+            outside = signed_dist > 0
+            n_out = int(outside.sum().item())
+            if n_out > 0:
+                epsilon = 1e-4 * float(self.model.query_mesh.scale)
+                # Move by (signed_dist + epsilon) along -normal so the
+                # projected center lands an ε strictly inside the surface
+                # patch we projected to.
+                delta = (signed_dist + epsilon).unsqueeze(1) * nearest_normal
+                self.model._centers.data = torch.where(
+                    outside.unsqueeze(1), centers - delta, centers
+                )
+            return n_out
 
     def _get_gradient_info(self) -> Dict[str, float]:
         """Get gradient magnitude information."""
@@ -315,31 +388,28 @@ class MorphItTrainer:
         if hasattr(self.model, "render_thread"):
             self.model.stop_render_thread()
 
-        # ── BAND-AID ─────────────────────────────────────────────────────
-        # TODO(escaped-sphere prune): the optimizer occasionally pushes a
-        # sphere's center outside the mesh between density-control passes
-        # (most often with MorphIt-S, where boundary_weight is very high
-        # and mesh_containment_weight is 0). Density control catches and
-        # reseeds these every few hundred iters, but anything that escapes
-        # *after* the last density-control pass survives until training
-        # ends. Until we fix the underlying gradient (likely via a
-        # non-zero mesh_containment_weight or a hard projection step),
-        # we sweep the survivors here so users never see escaped spheres
-        # in the output URDF.
+        # ── BAND-AID ────────────────────────────────────────────────
+        # Final-iteration escape prune. Mid-training, density control's
+        # ``_identify_bad_spheres`` already flags any sphere whose
+        # center has drifted outside the mesh and force-culls + reseeds
+        # it (see density_control.py). The per-step projection in
+        # ``_training_step`` also clamps escapes every iteration. What
+        # neither catches: a sphere that drifts outside in the *last*
+        # training segment (after the last density-control pass and
+        # past the projection's per-step approximation in a concave
+        # region). This prune mops those up so output URDFs never
+        # contain a sphere with its center past the mesh boundary.
         #
-        # Side effect to be aware of: this can drop the final sphere
-        # count below the user's requested num_spheres. Density control
-        # is count-preserving on its own; this band-aid is the only thing
+        # Side effect: can drop the final sphere count below the
+        # user's requested ``num_spheres``. Density control is
+        # count-preserving on its own; this prune is the only thing
         # that breaks that invariant.
-        #
-        # To remove this once the underlying loss is fixed: delete the
-        # call to `_prune_escaped_spheres()` below and the method itself.
+        # ────────────────────────────────────────────────────────────
         n_pruned = self._prune_escaped_spheres()
         if n_pruned > 0:
-            print(f"\n[final prune] removed {n_pruned} sphere(s) whose centers "
-                  f"drifted outside the mesh during the last training segment "
-                  f"(see TODO(escaped-sphere prune) in training.py)")
-        # ── END BAND-AID ─────────────────────────────────────────────────
+            print(f"\n[final prune] removed {n_pruned} sphere(s) whose "
+                  f"centers drifted outside the mesh during the last "
+                  f"training segment")
 
         # Log final state
         self.evolution_logger.log_spheres(self.model, self.current_iteration, "final")
@@ -349,12 +419,9 @@ class MorphItTrainer:
         self._print_training_summary()
 
     def _prune_escaped_spheres(self) -> int:
-        """Strip spheres whose centers are outside the mesh. Returns count.
-
-        TODO(escaped-sphere prune): see comment in _finalize_training.
-        This method exists only to mask a real loss-side bug; remove
-        when the gradient pipeline keeps every sphere center inside the
-        mesh on its own.
+        """Strip spheres whose centers are outside the mesh. Returns
+        the count removed. See the band-aid comment in
+        ``_finalize_training`` for why this exists.
         """
         with torch.no_grad():
             centers_np = self.model.centers.detach().cpu().numpy()
@@ -377,14 +444,11 @@ class MorphItTrainer:
 
             # Need ≥1 sphere left for downstream code (and a no-sphere
             # URDF is useless anyway). If pruning would empty the pack,
-            # leave the least-bad sphere behind and warn loudly.
+            # leave one sphere behind and warn.
             if int(keep_mask.sum().item()) == 0:
                 print("[final prune] WARNING: every sphere has its center "
-                      "outside the mesh. Keeping the closest one to avoid "
+                      "outside the mesh. Keeping the first one to avoid "
                       "an empty packing; the result will not be useful.")
-                # Pick the sphere whose center is least-far-outside.
-                # We don't have signed distances, so fall back to keeping
-                # index 0.
                 keep_mask[0] = True
                 n_remove = int((~keep_mask).sum().item())
 
