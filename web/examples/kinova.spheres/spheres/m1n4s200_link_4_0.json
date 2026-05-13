@@ -1,0 +1,229 @@
+{
+    "centers": [
+        [
+            -2.18551758734975e-06,
+            -0.0009482271270826459,
+            -0.023623337969183922
+        ],
+        [
+            -0.0056509654968976974,
+            -0.024385204538702965,
+            -0.07410433888435364
+        ],
+        [
+            -0.0020503296982496977,
+            0.02331720106303692,
+            -0.07076041400432587
+        ],
+        [
+            -0.003833648981526494,
+            -0.031614430248737335,
+            -0.0938352718949318
+        ],
+        [
+            -0.01438746228814125,
+            0.03831310570240021,
+            -0.09459681808948517
+        ],
+        [
+            0.01509405393153429,
+            -0.010854562744498253,
+            -0.10821641981601715
+        ],
+        [
+            0.010585722513496876,
+            0.01341154146939516,
+            -0.10319685190916061
+        ],
+        [
+            0.0052602216601371765,
+            0.011717088520526886,
+            -0.08959666639566422
+        ],
+        [
+            -0.003180194878950715,
+            0.030220484361052513,
+            -0.11131740361452103
+        ],
+        [
+            0.009502029046416283,
+            0.026307236403226852,
+            -0.08941658586263657
+        ],
+        [
+            -0.006739511154592037,
+            -0.029941044747829437,
+            -0.10811571776866913
+        ],
+        [
+            -0.020350215956568718,
+            -0.001134563353843987,
+            -0.0779106616973877
+        ],
+        [
+            0.006927271839231253,
+            0.0359366349875927,
+            -0.08779547363519669
+        ],
+        [
+            -0.010793255642056465,
+            -0.006169551983475685,
+            -0.06295543164014816
+        ],
+        [
+            -0.017258238047361374,
+            0.010735627263784409,
+            -0.10282031446695328
+        ],
+        [
+            -0.0163744930177927,
+            -0.011610802263021469,
+            -0.1032763421535492
+        ],
+        [
+            0.0008972677169367671,
+            -0.02686856873333454,
+            -0.05286804214119911
+        ],
+        [
+            -0.00564087089151144,
+            0.023204835131764412,
+            -0.047681380063295364
+        ],
+        [
+            0.015173588879406452,
+            -0.009587707929313183,
+            -0.10673815757036209
+        ]
+    ],
+    "radii": [
+        0.03541816398501396,
+        0.02892308495938778,
+        0.02936292067170143,
+        0.019681740552186966,
+        0.01561612170189619,
+        0.012425168417394161,
+        0.016099678352475166,
+        0.01943431794643402,
+        0.009987047873437405,
+        0.009979918599128723,
+        0.011586553417146206,
+        0.011561010032892227,
+        0.015250977128744125,
+        0.019479963928461075,
+        0.014581105671823025,
+        0.014787955209612846,
+        0.019442373886704445,
+        0.020669858902692795,
+        0.014911030419170856
+    ],
+    "masses": [
+        0.18610872328281403,
+        0.10134968906641006,
+        0.10604406148195267,
+        0.03193589299917221,
+        0.015951743349432945,
+        0.008035176433622837,
+        0.017479950562119484,
+        0.03074655681848526,
+        0.0041725351475179195,
+        0.004163605626672506,
+        0.006515554618090391,
+        0.006472557783126831,
+        0.014858727343380451,
+        0.03096371330320835,
+        0.012985538691282272,
+        0.013546058908104897,
+        0.030784808099269867,
+        0.0369914285838604,
+        0.013887099921703339
+    ],
+    "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/kinova_description/meshes/hand_2finger.stl",
+    "num_spheres": 19,
+    "per_sphere_mass": false,
+    "config": {
+        "model": {
+            "num_spheres": 20,
+            "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/kinova_description/meshes/hand_2finger.stl",
+            "device": "cpu",
+            "initial_radius_variation": 0.1,
+            "num_inside_samples": 5000,
+            "num_surface_samples": 5000,
+            "max_spheres": 25,
+            "density": 1000.0,
+            "per_sphere_mass": false
+        },
+        "training": {
+            "iterations": 200,
+            "verbose_frequency": 50,
+            "logging_enabled": false,
+            "center_lr": 0.002,
+            "radius_lr": 0.005,
+            "mass_lr": 0.01,
+            "grad_clip_norm": 1.0,
+            "coverage_weight": 1500.0,
+            "overlap_weight": 0.3,
+            "boundary_weight": 1.0,
+            "surface_weight": 50.0,
+            "containment_weight": 10.0,
+            "sqem_weight": 3000.0,
+            "mass_weight": 0.0,
+            "com_weight": 0.0,
+            "inertia_weight": 0.0,
+            "flatness_weight": 0.0,
+            "hausdorff_weight": 0.0,
+            "mesh_containment_weight": 10.0,
+            "early_stopping": false,
+            "convergence_patience": 50,
+            "convergence_threshold": 0.001,
+            "density_control_enabled": true,
+            "density_control_min_interval": 160,
+            "density_control_patience": 1,
+            "density_control_grad_threshold": 0.0001,
+            "density_control_warmup_steps": 10,
+            "density_control_cooling_factor": 0.85,
+            "density_control_min_radius_fraction": 0.001
+        },
+        "visualization": {
+            "enabled": false,
+            "off_screen": true,
+            "save_video": false,
+            "video_filename": "sphere_filling.mp4",
+            "render_interval": 5,
+            "sphere_color": "blue",
+            "sphere_opacity": 0.3,
+            "mesh_color": "white",
+            "mesh_line_width": 1.5,
+            "mesh_opacity": 0.8,
+            "show_sample_points": true,
+            "show_surface_points": true,
+            "sample_points_subsample": 100000,
+            "surface_points_subsample": 100000,
+            "sample_point_color": "red",
+            "surface_point_color": "green",
+            "point_size": 5,
+            "camera_position": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "camera_focal_point": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "camera_view_up": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "camera_azimuth": 80,
+            "camera_elevation": 120,
+            "camera_roll": 120,
+            "camera_zoom": 1.5
+        },
+        "results_dir": "/Users/nn/devenv/MorphIt-1/web/examples/kinova.spheres/spheres",
+        "output_filename": "m1n4s200_link_4_0.json",
+        "random_seed": 0
+    }
+}

@@ -43,7 +43,7 @@ from training import train_morphit  # noqa: E402
 # axis-asymmetric COM-offset objects (the inertia / COM stress case).
 MESHES = (
     ("link0", "fr3/collision/link0.obj"),
-    ("bunny", "bunny.obj"),
+    ("bunny", "objects/bunny.obj"),
     ("vase", "objects/vase.obj"),
 )
 N_SPHERES = (64,)

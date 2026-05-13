@@ -26,24 +26,34 @@
 <style>
   :root {
     color-scheme: dark;
-    --bg: #0b0e14;
-    --bg-elev: #141923;
-    --bg-input: #0e131c;
-    --border: #262d3a;
-    --border-strong: #313a4f;
-    --text: #e6e8ee;
-    --muted: #8a93a6;
-    --accent: #7c8cff;
-    --accent-hover: #99a5ff;
-    --accent-fg: #0b0e14;
-    --danger: #ff6b6b;
-    --ok: #5fd394;
-    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-    --shadow-md: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px -6px rgb(0 0 0 / 0.5);
-    --shadow-glow: 0 0 0 3px rgb(124 140 255 / 0.18);
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
+    /* Cyber-dark palette. Deep near-black surfaces with a hint of
+       blue, neon cyan primary, magenta secondary used sparingly for
+       highlights (Default pills, hover accents). */
+    --bg: #04060b;
+    --bg-elev: #0b1019;
+    --bg-input: #070b13;
+    --bg-raised: #11182a;       /* tiles, secondary surfaces */
+    --border: #1a2438;
+    --border-strong: #2b3a5e;
+    --text: #d8dde8;
+    --muted: #6f7d9a;
+    --accent: #00e0ff;          /* neon cyan */
+    --accent-hover: #5cf0ff;
+    --accent-fg: #04060b;
+    --accent-2: #ff3da5;        /* neon magenta */
+    --danger: #ff4d6b;
+    --ok: #44eaa1;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.55);
+    --shadow-md: 0 1px 2px rgb(0 0 0 / 0.55), 0 12px 32px -8px rgb(0 0 0 / 0.6);
+    --shadow-glow: 0 0 0 3px rgb(0 224 255 / 0.22);
+    --glow-accent: 0 0 20px -2px rgb(0 224 255 / 0.45);
+    --glow-accent-2: 0 0 18px -2px rgb(255 61 165 / 0.35);
+    /* Curvier than before — sphere-packing software should *feel* round. */
+    --radius-sm: 12px;
+    --radius-md: 18px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
+    --radius-pill: 999px;
   }
 
   * { box-sizing: border-box; }
@@ -51,16 +61,21 @@
   html, body { height: 100%; }
   body {
     margin: 0;
-    background:
-      radial-gradient(1200px 600px at 50% -200px, rgb(124 140 255 / 0.10), transparent 60%),
-      var(--bg);
+    background: var(--bg);
     color: var(--text);
     font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
 
-  .wrap { max-width: 760px; margin: 0 auto; padding: clamp(2rem, 5vw, 4rem) 1.25rem 5rem; }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4rem) 1.25rem 5rem;
+    position: relative;
+    z-index: 1;
+  }
+
 
   header { margin-bottom: 1.75rem; }
   h1 {
@@ -74,8 +89,8 @@
   .card {
     background: linear-gradient(180deg, rgb(255 255 255 / 0.015), transparent), var(--bg-elev);
     border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 1.5rem;
+    border-radius: var(--radius-xl);
+    padding: 1.75rem;
     box-shadow: var(--shadow-md);
   }
 
@@ -121,7 +136,7 @@
     color: var(--text);
     background: #1d2434;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 10px;
     padding: .35rem .75rem;
     margin-right: .75rem;
     cursor: pointer;
@@ -149,8 +164,8 @@
   .btn {
     font: inherit;
     font-weight: 550;
-    border-radius: var(--radius-sm);
-    padding: .65rem 1.1rem;
+    border-radius: var(--radius-pill);
+    padding: .7rem 1.4rem;
     cursor: pointer;
     transition: background-color .12s ease, border-color .12s ease, transform .08s ease, box-shadow .12s ease, color .12s ease;
     border: 1px solid transparent;
@@ -163,9 +178,14 @@
   .btn-primary {
     background: var(--accent);
     color: var(--accent-fg);
-    box-shadow: var(--shadow-sm), 0 4px 14px -4px rgb(124 140 255 / 0.5);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    box-shadow: var(--shadow-sm), var(--glow-accent);
   }
-  .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    box-shadow: var(--shadow-sm), 0 0 28px -2px rgb(0 224 255 / 0.6);
+  }
 
   .btn-ghost {
     background: transparent;
@@ -185,12 +205,228 @@
     font-size: .85rem;
     cursor: pointer;
     text-decoration: underline;
-    text-decoration-color: rgb(124 140 255 / 0.4);
+    text-decoration-color: rgb(0 224 255 / 0.4);
     text-underline-offset: 3px;
     transition: color .12s ease, text-decoration-color .12s ease;
   }
   .link-btn:hover { color: var(--accent-hover); text-decoration-color: var(--accent-hover); }
   .link-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ─────────── Library modal (cyber-dark, shares root palette) ─────────── */
+  .library-backdrop {
+    position: fixed;
+    inset: 0;
+    /* Deep dim with a faint cyan/magenta wash to thread the cyber
+       palette through the backdrop. */
+    background:
+      radial-gradient(800px 500px at 20% 0%,  rgb(0 224 255 / 0.10), transparent 65%),
+      radial-gradient(700px 400px at 90% 100%, rgb(255 61 165 / 0.07), transparent 65%),
+      rgba(2, 4, 8, 0.78);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: clamp(1rem, 4vw, 3rem);
+    animation: libraryBackdropIn 250ms ease-out;
+  }
+  .library-backdrop[hidden] { display: none; }
+
+  .library-panel {
+    background:
+      linear-gradient(180deg, rgb(0 224 255 / 0.04), transparent 30%),
+      var(--bg-elev);
+    color: var(--text);
+    width: 100%;
+    max-width: 1100px;
+    max-height: 85vh;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+    box-shadow:
+      0 28px 80px -20px rgb(0 0 0 / 0.75),
+      0 0 0 1px rgb(0 224 255 / 0.08);
+    animation: libraryPanelIn 200ms ease-out;
+  }
+
+  .library-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.75rem 2rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  /* A thin neon-accent line under the header */
+  .library-header::after {
+    content: "";
+    position: absolute;
+    left: 2rem;
+    right: 2rem;
+    bottom: -1px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--accent-2) 80%, transparent);
+    opacity: 0.45;
+  }
+
+  .library-title {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+  .library-title::before {
+    content: "● ";
+    color: var(--accent);
+    text-shadow: 0 0 10px rgb(0 224 255 / 0.8), 0 0 4px rgb(0 224 255 / 0.6);
+    margin-right: 0.2rem;
+    font-size: 0.9em;
+    vertical-align: 0.05em;
+  }
+
+  .library-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: var(--bg-input);
+    color: var(--muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .library-close:hover {
+    background: rgb(0 224 255 / 0.08);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .library-close:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+  .library-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.1rem;
+    padding: 1.5rem 2rem 1.75rem;
+    overflow-y: auto;
+  }
+
+  .library-empty {
+    padding: 3rem 2rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+
+  .library-tile {
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 0.025), transparent 60%),
+      var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: transform 120ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  }
+  .library-tile:hover {
+    transform: translateY(-2px);
+    border-color: rgb(0 224 255 / 0.55);
+    box-shadow:
+      0 12px 28px -14px rgb(0 0 0 / 0.6),
+      0 0 22px -4px rgb(0 224 255 / 0.35);
+  }
+  .library-tile:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--shadow-glow), 0 0 24px -4px rgb(0 224 255 / 0.4);
+  }
+
+  .library-tile-thumb {
+    aspect-ratio: 1 / 1;
+    background:
+      linear-gradient(180deg, rgb(0 224 255 / 0.05), transparent 60%),
+      #060a13;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .library-tile-thumb img {
+    width: 100%; height: 100%; object-fit: contain; display: block;
+    /* Subtle cyan-tinted shadow so light PNGs sit nicely on dark. */
+    filter: drop-shadow(0 0 8px rgb(0 224 255 / 0.15));
+  }
+  .library-tile-thumb svg { width: 56%; height: 56%; opacity: 0.4; }
+
+  .library-tile-body { padding: 0.7rem 0.9rem 0.85rem; }
+  .library-tile-name {
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: var(--text);
+    margin: 0;
+    line-height: 1.3;
+  }
+  .library-tile-sub {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0.2rem 0 0;
+    line-height: 1.4;
+    font-family: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  .library-tile.is-default::after {
+    content: "DEFAULT";
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #04060b;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 0.18rem 0.5rem;
+    border-radius: 999px;
+    box-shadow: 0 0 14px -2px rgb(0 224 255 / 0.55);
+  }
+
+  /* Robot tiles: same card geometry, no thumbnail, name fills the top. */
+  .library-tile.is-robot { min-height: 220px; }
+  .library-tile.is-robot .library-tile-body {
+    padding: 1.25rem 1.1rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.3rem;
+  }
+  .library-tile.is-robot .library-tile-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  @keyframes libraryPanelIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.985); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes libraryBackdropIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
 
   .status { color: var(--muted); font-size: .9rem; }
   .status.err { color: var(--danger); white-space: pre-wrap; }
@@ -231,7 +467,7 @@
     font-weight: 550;
     letter-spacing: .02em;
     padding: .3rem .7rem;
-    border-radius: 6px;
+    border-radius: 10px;
     border: 1px solid var(--border-strong);
     background: rgb(20 25 35 / 0.85);
     color: var(--muted);
@@ -289,7 +525,7 @@
     text-transform: uppercase;
     margin-left: .35rem;
     padding: 1px 6px;
-    border-radius: 4px;
+    border-radius: 8px;
     background: rgb(255 255 255 / 0.06);
     color: var(--muted);
     vertical-align: 1px;
@@ -381,7 +617,7 @@
     padding: 8px 10px;
     background: #0a0d14;
     border: 1px solid var(--border-strong);
-    border-radius: 6px;
+    border-radius: 10px;
     color: var(--text);
     font: 400 12px/1.4 ui-sans-serif, system-ui, sans-serif;
     text-align: left;
@@ -528,12 +764,12 @@
     font-size: .74rem;
     font-weight: 600;
     padding: 1px 7px;
-    border-radius: 4px;
+    border-radius: 8px;
     background: rgb(255 255 255 / 0.05);
     color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  .ins-section.pack .ins-count { background: rgb(124 140 255 / 0.18); color: var(--accent); }
+  .ins-section.pack .ins-count { background: rgb(0 224 255 / 0.16); color: var(--accent); }
   .ins-section.err  .ins-count { background: rgb(255 107 107 / 0.15); color: var(--danger); }
 
   .ins-desc {
@@ -566,7 +802,7 @@
     letter-spacing: .05em;
     font-weight: 600;
     padding: 1px 6px;
-    border-radius: 3px;
+    border-radius: 6px;
     background: rgb(255 255 255 / 0.04);
   }
 
@@ -618,7 +854,7 @@
     font-size: .78rem;
     font-weight: 550;
     padding: .25rem .65rem;
-    border-radius: 6px;
+    border-radius: 10px;
     border: 1px solid var(--border-strong);
     background: transparent;
     color: var(--muted);
@@ -720,7 +956,7 @@
     line-height: 1.55;
   }
   .cite p { margin: 0 0 .65rem; }
-  .cite a { color: var(--accent); text-decoration: underline; text-decoration-color: rgb(124 140 255 / 0.4); text-underline-offset: 3px; }
+  .cite a { color: var(--accent); text-decoration: underline; text-decoration-color: rgb(0 224 255 / 0.4); text-underline-offset: 3px; }
   .cite a:hover { color: var(--accent-hover); text-decoration-color: var(--accent-hover); }
   /* Wrapper sets up positioning context for the absolutely-placed copy
      button, mirroring the pattern used by the URDF .output-wrap. */
@@ -753,6 +989,7 @@
 </style>
 </head>
 <body data-mode="object">
+
 <div class="wrap">
   <header>
     <h1>MorphIt</h1>
@@ -769,13 +1006,17 @@
       <label class="field full" data-mode-only="object">
         <span>Mesh file <span class="info" data-tip="Triangle mesh you want to approximate as spheres. Supported formats: .obj, .stl, .ply. Larger meshes take a little longer to load but pack the same."></span></span>
         <input id="mesh-input" type="file" name="mesh" accept=".obj,.stl,.ply">
-        <button id="example" type="button" class="link-btn">Use example: link0.obj (Franka FR3)</button>
+        <button id="open-object-library" type="button" class="link-btn library-btn">
+          <span aria-hidden="true">📚</span> Pick from library
+        </button>
       </label>
 
       <label class="field full" data-mode-only="robot">
         <span>Robot description <span class="info" data-tip="Drop the package root folder (e.g. franka_description). The folder should contain a URDF and the meshes it references. URDFs that use package:// URIs need the parent of the package folder to be present too."></span></span>
         <input id="folder-input" type="file" webkitdirectory directory multiple>
-        <button id="example-robot" type="button" class="link-btn">Use example: kinova m1n4s200</button>
+        <button id="open-robot-library" type="button" class="link-btn library-btn">
+          <span aria-hidden="true">📚</span> Pick from library
+        </button>
       </label>
 
       <label class="field full" id="urdf-picker-wrap" data-mode-only="robot" hidden>
@@ -938,6 +1179,19 @@
     </div>
   </form>
 
+  <div id="library-modal" class="library-backdrop" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="library-title">
+    <div class="library-panel" role="document">
+      <header class="library-header">
+        <h2 id="library-title" class="library-title">Library</h2>
+        <button id="library-close" type="button" class="library-close" aria-label="Close library">×</button>
+      </header>
+      <div id="library-grid" class="library-grid">
+        <!-- tiles injected by JS -->
+      </div>
+      <p id="library-empty" class="library-empty" hidden>No items in library yet.</p>
+    </div>
+  </div>
+
   <div id="viewers" class="viewers" hidden>
     <div class="viewer-pane" data-mode-only="robot">
       <span class="pane-title">Original collision geometry</span>
@@ -1015,8 +1269,186 @@ const status = document.getElementById('status');
 const go = document.getElementById('go');
 const dl = document.getElementById('dl');
 const copy = document.getElementById('copy');
-const example = document.getElementById('example');
-const exampleRobot = document.getElementById('example-robot');
+const libraryModal = document.getElementById('library-modal');
+const libraryTitle = document.getElementById('library-title');
+const libraryGrid  = document.getElementById('library-grid');
+const libraryEmpty = document.getElementById('library-empty');
+const libraryClose = document.getElementById('library-close');
+
+let libraryState = { kind: null, onSelect: null, currentName: null };
+
+function openLibrary({ kind, title, currentName, onSelect }) {
+  libraryState = { kind, onSelect, currentName };
+  libraryTitle.textContent = title;
+  libraryGrid.innerHTML = '';
+  libraryEmpty.hidden = true;
+  libraryModal.hidden = false;
+  libraryModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  // Defer focus so the open animation doesn't fight it.
+  setTimeout(() => libraryClose.focus(), 50);
+}
+
+function closeLibrary() {
+  libraryModal.hidden = true;
+  libraryModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  libraryState = { kind: null, onSelect: null, currentName: null };
+}
+
+libraryClose.addEventListener('click', closeLibrary);
+libraryModal.addEventListener('click', (e) => {
+  // Backdrop click closes; panel clicks don't bubble out of the panel.
+  if (e.target === libraryModal) closeLibrary();
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !libraryModal.hidden) closeLibrary();
+});
+
+const SILHOUETTE_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="#a8a098" aria-hidden="true">
+  <path d="M32 8c-9.94 0-18 8.06-18 18 0 6.6 3.55 12.36 8.85 15.5L22 56h20l-.85-14.5C46.45 38.36 50 32.6 50 26c0-9.94-8.06-18-18-18z"/>
+</svg>`;
+
+function renderObjectTile(item) {
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'library-tile' + (item.default ? ' is-default' : '');
+  tile.setAttribute('aria-label', `Load ${item.filename}`);
+  const thumbInner = item.has_thumbnail
+    ? `<img src="/api/example/${encodeURIComponent(item.name)}/thumbnail" alt="">`
+    : SILHOUETTE_SVG;
+  tile.innerHTML = `
+    <div class="library-tile-thumb">${thumbInner}</div>
+    <div class="library-tile-body">
+      <p class="library-tile-name">${item.filename}</p>
+    </div>`;
+  tile.addEventListener('click', () => {
+    const onSelect = libraryState.onSelect;
+    const isSame = item.name === libraryState.currentName;
+    closeLibrary();
+    if (!isSame && onSelect) onSelect(item.name);
+  });
+  return tile;
+}
+
+async function openObjectLibrary() {
+  openLibrary({
+    kind: 'object',
+    title: 'Object library',
+    currentName: currentObjectName,
+    onSelect: (name) => loadExampleByName(name).then(() => { currentObjectName = name; }),
+  });
+  try {
+    const r = await fetch('/api/examples');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const list = await r.json();
+    if (!Array.isArray(list) || list.length === 0) {
+      libraryEmpty.hidden = false;
+      return;
+    }
+    libraryGrid.innerHTML = '';
+    list.forEach(item => libraryGrid.appendChild(renderObjectTile(item)));
+  } catch (err) {
+    console.error('[library] fetch failed:', err);
+    libraryEmpty.textContent = 'Could not load library.';
+    libraryEmpty.hidden = false;
+  }
+}
+
+document.getElementById('open-object-library')
+  .addEventListener('click', openObjectLibrary);
+
+function renderRobotTile(item) {
+  const tile = document.createElement('button');
+  tile.type = 'button';
+  tile.className = 'library-tile is-robot' + (item.default ? ' is-default' : '');
+  tile.setAttribute('aria-label', `Load ${item.label}`);
+  tile.innerHTML = `
+    <div class="library-tile-body">
+      <p class="library-tile-name">${item.label}</p>
+      <p class="library-tile-sub">${item.urdf}</p>
+    </div>`;
+  tile.addEventListener('click', () => {
+    const onSelect = libraryState.onSelect;
+    const isSame = item.name === libraryState.currentName;
+    closeLibrary();
+    if (!isSame && onSelect) onSelect(item.name);
+  });
+  return tile;
+}
+
+let currentRobotName = null;
+
+async function loadRobotByName(name) {
+  // Prep robot-mode state and show the inspection panel.
+  inspectionDetails.hidden = false;
+  inspectionDetails.open = true;
+  inspectionEl.innerHTML = `Inspecting…`;
+  urdfPickerWrap.hidden = true;
+  robotFolderFiles = [];        // not a user upload
+  robotChosenUrdf = null;
+
+  // Bootstrap a session from the bundled robot.
+  const r = await fetch(`/api/robot/example/${encodeURIComponent(name)}`, {
+    method: 'POST',
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    inspectionEl.innerHTML =
+      `<span class="badge err">Failed</span> ${escapeHtml(text)}`;
+    throw new Error(`session create failed: ${r.status} ${text}`);
+  }
+  const report = await r.json();
+  robotSessionId = report.session_id;
+  robotReport = report;
+  renderInspection(report);
+
+  // If a pre-baked spherical URDF exists, render it now so the user
+  // sees a packed result with no clicks. Populate the left "Original
+  // collision geometry" viewer too, mirroring what Run MorphIt does
+  // after assemble — otherwise the left pane sits empty next to a
+  // pre-loaded right pane.
+  const sph = await fetch(`/api/robot/example/${encodeURIComponent(name)}/spherical`);
+  if (sph.ok) {
+    const urdfText = await sph.text();
+    renderUrdf(urdfText, { filename: `${name}_spherical.urdf` });
+    viewerOriginal.urdf =
+      `/api/robot/file?session_id=${encodeURIComponent(robotSessionId)}` +
+      `&path=${encodeURIComponent(report.urdf_path)}`;
+  }
+  currentRobotName = name;
+}
+
+async function openRobotLibrary() {
+  openLibrary({
+    kind: 'robot',
+    title: 'Robot library',
+    currentName: currentRobotName,
+    onSelect: (name) => loadRobotByName(name).catch(err => {
+      status.classList.add('err');
+      status.textContent = String(err);
+    }),
+  });
+  try {
+    const r = await fetch('/api/robot/examples');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const list = await r.json();
+    if (!Array.isArray(list) || list.length === 0) {
+      libraryEmpty.hidden = false;
+      return;
+    }
+    libraryGrid.innerHTML = '';
+    list.forEach(item => libraryGrid.appendChild(renderRobotTile(item)));
+  } catch (err) {
+    console.error('[robot library] fetch failed:', err);
+    libraryEmpty.textContent = 'Could not load robot library.';
+    libraryEmpty.hidden = false;
+  }
+}
+
+document.getElementById('open-robot-library')
+  .addEventListener('click', openRobotLibrary);
 const viewer = document.getElementById('viewer');
 const viewerOriginal = document.getElementById('viewer-original');
 const viewersEl = document.getElementById('viewers');
@@ -1032,6 +1464,63 @@ const progressLabel = document.getElementById('progress-label');
 const modeObjectBtn = document.getElementById('mode-object');
 const modeRobotBtn  = document.getElementById('mode-robot');
 const jointControlsEl = document.getElementById('joint-controls');
+// Track which example is currently loaded so picking the same one is a no-op.
+let currentObjectName = null;
+
+// Load an example by name: stage its source mesh on the file input
+// (so a subsequent Run MorphIt re-packs the right thing) and, if the
+// server has a pre-baked URDF for it, render the result immediately
+// without spending compute. The helper looks up its own metadata from
+// /api/examples so it works whether called from the modal, the
+// page-load preload, or any future caller.
+async function loadExampleByName(name) {
+  let list;
+  try {
+    const r = await fetch('/api/examples');
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    list = await r.json();
+  } catch (err) {
+    throw new Error(`could not look up example ${name}: ${err}`);
+  }
+  const item = list.find(e => e.name === name);
+  if (!item) throw new Error(`example ${name} not in /api/examples`);
+
+  const meshResp = await fetch(`/api/example/${encodeURIComponent(name)}`);
+  if (!meshResp.ok) throw new Error(`mesh fetch failed: ${meshResp.status}`);
+  const blob = await meshResp.blob();
+  // DataTransfer is the only way to programmatically populate
+  // <input type=file> — supported in all current browsers.
+  const dt = new DataTransfer();
+  dt.items.add(new File([blob], item.filename, {
+    type: blob.type || 'application/octet-stream',
+  }));
+  fileInput.files = dt.files;
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+  if (!item.has_packed) return;
+  const packedResp = await fetch(`/api/example/${encodeURIComponent(name)}/packed`);
+  if (!packedResp.ok) return;
+  const urdfText = await packedResp.text();
+  const centroidHdr = packedResp.headers.get('X-Morphit-Centroid');
+  if (centroidHdr) lastCentroid = centroidHdr.split(',').map(parseFloat);
+  const baseName = item.filename.replace(/\.[^.]+$/, '');
+  renderUrdf(urdfText, { filename: `${baseName}.urdf` });
+}
+
+// Initial bunny preload — same auto-load behavior we had with the
+// dropdown. Picks whichever entry the server flags as default;
+// falls back to the first if none is flagged.
+fetch('/api/examples')
+  .then(r => r.json())
+  .then(async list => {
+    if (!Array.isArray(list) || list.length === 0) return;
+    const def = list.find(e => e.default) ?? list[0];
+    currentObjectName = def.name;
+    try { await loadExampleByName(def.name); }
+    catch (err) { console.warn('[example] default load failed:', err); }
+  })
+  .catch(err => console.warn('[example] library fetch failed:', err));
+
 let lastBlobUrl = null;
 let lastFilename = 'morphit.urdf';
 let lastCentroid = null;       // [x, y, z] of the URDF base, for mesh alignment
@@ -1069,7 +1558,29 @@ function setMode(mode) {
 }
 
 modeObjectBtn.addEventListener('click', () => setMode('object'));
-modeRobotBtn.addEventListener('click',  () => setMode('robot'));
+modeRobotBtn.addEventListener('click', () => {
+  setMode('robot');
+  attemptRobotPreload();
+});
+
+let robotPreloadAttempted = false;
+
+async function attemptRobotPreload() {
+  if (robotPreloadAttempted) return;
+  robotPreloadAttempted = true;
+  try {
+    const r = await fetch('/api/robot/examples');
+    if (!r.ok) return;
+    const list = await r.json();
+    if (!Array.isArray(list) || list.length === 0) return;
+    const def = list.find(e => e.default) ?? list[0];
+    await loadRobotByName(def.name);
+  } catch (err) {
+    console.warn('[robot preload] failed:', err);
+    // Allow a retry on the next tab click if the first attempt failed.
+    robotPreloadAttempted = false;
+  }
+}
 
 function resetOutputs() {
   outWrap.hidden = true;
@@ -1406,30 +1917,6 @@ viewer.addEventListener('urdf-processed', async () => {
   buildJointControls();
 });
 
-example.addEventListener('click', async () => {
-  example.disabled = true;
-  const prev = example.textContent;
-  example.textContent = 'Loading example…';
-  try {
-    const r = await fetch('/api/example/link0');
-    if (!r.ok) throw new Error(`example fetch failed: ${r.status}`);
-    const blob = await r.blob();
-    // DataTransfer is the only way to programmatically populate
-    // <input type=file> — supported in all current browsers.
-    const dt = new DataTransfer();
-    dt.items.add(new File([blob], 'link0.obj', { type: 'model/obj' }));
-    fileInput.files = dt.files;
-    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-    example.textContent = 'Example loaded, click Run MorphIt';
-  } catch (err) {
-    example.textContent = prev;
-    status.classList.add('err');
-    status.textContent = String(err);
-  } finally {
-    example.disabled = false;
-  }
-});
-
 // Packed-output viewer (right pane / object mode): skip ALL <mesh>
 // references. Our generated URDFs only contain <sphere> primitives, but
 // in robot mode the visual <mesh> elements are passed through verbatim
@@ -1726,39 +2213,6 @@ folderInput.addEventListener('change', () => {
 urdfPicker.addEventListener('change', () => {
   robotChosenUrdf = urdfPicker.value;
   runInspection();
-});
-
-// Robot-mode example loader. Server bootstraps a session from the
-// bundled kinova_description and returns the same inspection shape as
-// a user upload, so we just plug the result into the existing flow.
-exampleRobot.addEventListener('click', async () => {
-  exampleRobot.disabled = true;
-  const prev = exampleRobot.textContent;
-  exampleRobot.textContent = 'Loading kinova example…';
-
-  inspectionDetails.hidden = false;
-  inspectionDetails.open = true;
-  inspectionEl.innerHTML = `Inspecting…`;
-  urdfPickerWrap.hidden = true;
-  robotFolderFiles = [];   // not a user upload
-  robotChosenUrdf = null;
-
-  try {
-    const r = await fetch('/api/robot/example/kinova', { method: 'POST' });
-    if (!r.ok) throw new Error(await r.text());
-    const report = await r.json();
-    robotSessionId = report.session_id;
-    robotReport = report;
-    renderInspection(report);
-    exampleRobot.textContent = 'Kinova example loaded, click Run MorphIt';
-  } catch (err) {
-    inspectionEl.innerHTML =
-      `<span class="badge err">Failed</span> ${escapeHtml(err.message)}`;
-    exampleRobot.textContent = prev;
-    console.error('[robot example] load failed:', err);
-  } finally {
-    exampleRobot.disabled = false;
-  }
 });
 
 async function runInspection() {

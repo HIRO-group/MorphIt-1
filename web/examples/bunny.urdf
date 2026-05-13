@@ -1,0 +1,413 @@
+<?xml version="1.0"?>
+<robot name="bunny">
+  <!-- morphit:centroid 0.041098 -0.008122 0.090932 -->
+  <material name="default_color">
+    <color rgba="0.200000 0.600000 1.000000 1.000000"/>
+  </material>
+  <link name="base">
+    <inertial>
+      <mass value="0.001000"/>
+      <inertia ixx="0.000010" ixy="0.0" ixz="0.0" iyy="0.000010" iyz="0.0" izz="0.000010"/>
+    </inertial>
+  </link>
+  <link name="sphere_0">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.027893"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.027893"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.017507"/>
+      <inertia ixx="0.000005" ixy="0.0" ixz="0.0" iyy="0.000005" iyz="0.0" izz="0.000005"/>
+    </inertial>
+  </link>
+  <joint name="sphere_0_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_0"/>
+    <origin xyz="-0.031310 0.029067 0.073135" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_1">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.064490"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.064490"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.216386"/>
+      <inertia ixx="0.000360" ixy="0.0" ixz="0.0" iyy="0.000360" iyz="0.0" izz="0.000360"/>
+    </inertial>
+  </link>
+  <joint name="sphere_1_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_1"/>
+    <origin xyz="0.041860 -0.010488 -0.018190" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_2">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.037458"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.037458"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.042402"/>
+      <inertia ixx="0.000024" ixy="0.0" ixz="0.0" iyy="0.000024" iyz="0.0" izz="0.000024"/>
+    </inertial>
+  </link>
+  <joint name="sphere_2_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_2"/>
+    <origin xyz="-0.052289 -0.014140 0.044050" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_3">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.029211"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.029211"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.020108"/>
+      <inertia ixx="0.000007" ixy="0.0" ixz="0.0" iyy="0.000007" iyz="0.0" izz="0.000007"/>
+    </inertial>
+  </link>
+  <joint name="sphere_3_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_3"/>
+    <origin xyz="-0.004689 0.015918 -0.065502" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_4">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.026800"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.026800"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.015529"/>
+      <inertia ixx="0.000004" ixy="0.0" ixz="0.0" iyy="0.000004" iyz="0.0" izz="0.000004"/>
+    </inertial>
+  </link>
+  <joint name="sphere_4_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_4"/>
+    <origin xyz="-0.058542 -0.039279 0.037354" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_5">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.022293"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.022293"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.008938"/>
+      <inertia ixx="0.000002" ixy="0.0" ixz="0.0" iyy="0.000002" iyz="0.0" izz="0.000002"/>
+    </inertial>
+  </link>
+  <joint name="sphere_5_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_5"/>
+    <origin xyz="-0.023694 -0.030541 -0.070996" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_6">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.041401"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.041401"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.057250"/>
+      <inertia ixx="0.000039" ixy="0.0" ixz="0.0" iyy="0.000039" iyz="0.0" izz="0.000039"/>
+    </inertial>
+  </link>
+  <joint name="sphere_6_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_6"/>
+    <origin xyz="0.021897 -0.040896 -0.048597" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_7">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.037407"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.037407"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.042230"/>
+      <inertia ixx="0.000024" ixy="0.0" ixz="0.0" iyy="0.000024" iyz="0.0" izz="0.000024"/>
+    </inertial>
+  </link>
+  <joint name="sphere_7_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_7"/>
+    <origin xyz="0.074592 -0.023547 -0.049524" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_8">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.036527"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.036527"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.039319"/>
+      <inertia ixx="0.000021" ixy="0.0" ixz="0.0" iyy="0.000021" iyz="0.0" izz="0.000021"/>
+    </inertial>
+  </link>
+  <joint name="sphere_8_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_8"/>
+    <origin xyz="0.033329 0.020076 -0.049995" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_9">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.051281"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.051281"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.108800"/>
+      <inertia ixx="0.000114" ixy="0.0" ixz="0.0" iyy="0.000114" iyz="0.0" izz="0.000114"/>
+    </inertial>
+  </link>
+  <joint name="sphere_9_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_9"/>
+    <origin xyz="0.034336 -0.036099 -0.025060" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_10">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.043156"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.043156"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.064847"/>
+      <inertia ixx="0.000048" ixy="0.0" ixz="0.0" iyy="0.000048" iyz="0.0" izz="0.000048"/>
+    </inertial>
+  </link>
+  <joint name="sphere_10_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_10"/>
+    <origin xyz="-0.026485 -0.019465 -0.011796" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_11">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.029642"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.029642"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.021012"/>
+      <inertia ixx="0.000007" ixy="0.0" ixz="0.0" iyy="0.000007" iyz="0.0" izz="0.000007"/>
+    </inertial>
+  </link>
+  <joint name="sphere_11_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_11"/>
+    <origin xyz="0.030058 0.039846 -0.025802" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_12">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.046875"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.046875"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.083095"/>
+      <inertia ixx="0.000073" ixy="0.0" ixz="0.0" iyy="0.000073" iyz="0.0" izz="0.000073"/>
+    </inertial>
+  </link>
+  <joint name="sphere_12_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_12"/>
+    <origin xyz="-0.026638 0.003438 -0.004925" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_13">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.025989"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.025989"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.014162"/>
+      <inertia ixx="0.000004" ixy="0.0" ixz="0.0" iyy="0.000004" iyz="0.0" izz="0.000004"/>
+    </inertial>
+  </link>
+  <joint name="sphere_13_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_13"/>
+    <origin xyz="-0.024383 0.083673 0.090729" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_14">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.039658"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.039658"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.050319"/>
+      <inertia ixx="0.000032" ixy="0.0" ixz="0.0" iyy="0.000032" iyz="0.0" izz="0.000032"/>
+    </inertial>
+  </link>
+  <joint name="sphere_14_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_14"/>
+    <origin xyz="0.051944 -0.032149 0.003606" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_15">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.023830"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.023830"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.010918"/>
+      <inertia ixx="0.000002" ixy="0.0" ixz="0.0" iyy="0.000002" iyz="0.0" izz="0.000002"/>
+    </inertial>
+  </link>
+  <joint name="sphere_15_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_15"/>
+    <origin xyz="0.011265 0.046095 0.097696" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_16">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.045324"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.045324"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.075115"/>
+      <inertia ixx="0.000062" ixy="0.0" ixz="0.0" iyy="0.000062" iyz="0.0" izz="0.000062"/>
+    </inertial>
+  </link>
+  <joint name="sphere_16_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_16"/>
+    <origin xyz="-0.013171 0.007625 -0.002900" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_17">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.038646"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.038646"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.046565"/>
+      <inertia ixx="0.000028" ixy="0.0" ixz="0.0" iyy="0.000028" iyz="0.0" izz="0.000028"/>
+    </inertial>
+  </link>
+  <joint name="sphere_17_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_17"/>
+    <origin xyz="-0.041981 -0.001307 0.025319" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_18">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.034825"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.034825"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.034076"/>
+      <inertia ixx="0.000017" ixy="0.0" ixz="0.0" iyy="0.000017" iyz="0.0" izz="0.000017"/>
+    </inertial>
+  </link>
+  <joint name="sphere_18_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_18"/>
+    <origin xyz="-0.001249 -0.016213 0.001102" rpy="0 0 0"/>
+  </joint>
+  <link name="sphere_19">
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.033897"/></geometry>
+      <material name="default_color"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><sphere radius="0.033897"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.031421"/>
+      <inertia ixx="0.000014" ixy="0.0" ixz="0.0" iyy="0.000014" iyz="0.0" izz="0.000014"/>
+    </inertial>
+  </link>
+  <joint name="sphere_19_fixed" type="fixed">
+    <parent link="base"/>
+    <child link="sphere_19"/>
+    <origin xyz="0.005152 0.018387 0.000295" rpy="0 0 0"/>
+  </joint>
+</robot>

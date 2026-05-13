@@ -45,8 +45,8 @@ class TrainingConfig:
 
     # Optimizer parameters. radius_lr is in raw (pre-softplus) space — the
     # effective step on the real radius is sigmoid(raw_r) * lr.
-    center_lr: float = 0.001
-    radius_lr: float = 0.002
+    center_lr: float = 0.002
+    radius_lr: float = 0.005
     # mass_lr: only used when model.per_sphere_mass=True. Per-sphere
     # mass is softplus-reparameterized like radii; lr operates in raw
     # space. Default tuned so per-iter step is meaningful for typical

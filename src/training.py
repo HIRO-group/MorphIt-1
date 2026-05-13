@@ -211,14 +211,6 @@ class MorphItTrainer:
         # + density-control bad-sphere cull together keep escapes
         # bounded; the final-iteration prune in _finalize_training
         # catches whatever survives the last training segment.
-        #
-        # An SDF-based hard projection (ray-cast sign on a precomputed
-        # voxel grid) was tried — it eliminated essentially all escapes
-        # at concave regions like bunny ears, but at +14 % per-iter
-        # cost and a 0.5 MB precomputed grid per mesh. Reverted in
-        # favour of keeping MorphIt "meant to be fast"; the sample
-        # projection + final prune gives the same end-state guarantee
-        # at much lower cost.
         # ────────────────────────────────────────────────────────────
         self._project_centers_inside_mesh()
 

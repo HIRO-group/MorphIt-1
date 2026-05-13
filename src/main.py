@@ -23,18 +23,14 @@ def main():
         # For other meshes, swap the path above. The voxel-grid initializer
         # auto-tunes its cell size to the mesh, so no per-mesh tuning is
         # required for typical robot links.
-        # "model.mesh_path": "../mesh_models/objects/bunny.obj",
-        "training.iterations": 200,
+        "training.iterations": 300,
         "training.verbose_frequency": 10,
         "training.logging_enabled": False,
         # Density control reshuffles low-value spheres into uncovered
         # interior gaps. Min-interval gates how often it can fire; the
         # default fires ~2x in 200 iters, which is a balance between
         # quality and runtime.
-        "training.density_control_min_interval": 80,
-        # Radius LR is in raw (pre-softplus) space — the effective step
-        # on the real radius is sigmoid(raw_r) * lr.
-        "training.radius_lr": 0.1,
+        "training.density_control_min_interval": 160,
         "visualization.enabled": False,
         "visualization.off_screen": False,
         "visualization.save_video": False,

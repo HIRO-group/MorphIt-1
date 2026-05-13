@@ -4,13 +4,17 @@ MorphIt HTTP API.
 Single FastAPI service. Endpoints:
   GET  /                     -> static UI (index.html)
   GET  /healthz              -> liveness/readiness
-  GET  /api/example/link0    -> serve the bundled link0.obj demo mesh
+  GET  /api/examples              -> list bundled example meshes (library)
+  GET  /api/example/{name}        -> download a specific bundled example mesh
+  GET  /api/example/{name}/packed -> download the pre-baked URDF for an example
   POST /api/morph            -> object mode: upload mesh, run MorphIt, return URDF
 
 Robot mode (3-step flow, stateful sessions, 1-hour TTL):
-  POST /api/robot/inspect    -> upload folder, return inspection report + session_id
-  POST /api/robot/pack-link  -> pack one collision element (called per-link by UI)
-  POST /api/robot/assemble   -> stitch packed JSONs into the final spherical URDF
+  POST /api/robot/inspect          -> upload folder, return inspection report + session_id
+  POST /api/robot/pack-link        -> pack one collision element (called per-link by UI)
+  POST /api/robot/assemble         -> stitch packed JSONs into the final spherical URDF
+  GET  /api/robot/examples         -> list bundled example robots
+  POST /api/robot/example/{name}   -> bootstrap a session from a bundled robot
 
 Runs synchronously: each individual request blocks for its training run.
 Suitable for small meshes / short iteration counts; upgrade to a job queue
@@ -19,6 +23,7 @@ if request durations get long enough to hit ingress/proxy timeouts.
 
 import asyncio
 import json as _json
+import re
 import shutil
 import sys
 import tempfile
@@ -141,6 +146,34 @@ def _parse_advanced(advanced_json: str) -> Dict[str, Any]:
     }
 
 
+# Centroid metadata is embedded directly in the URDF (as an XML
+# comment) so the file is self-describing: copy-pasting the URDF text
+# carries the centroid along with it, and the wireframe overlay stays
+# aligned without a separate sidecar file.
+_CENTROID_COMMENT_RE = re.compile(
+    r"<!--\s*morphit:centroid\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)\s*-->"
+)
+
+
+def inject_centroid_comment(urdf_text: str, centroid) -> str:
+    """Embed `centroid` (3-tuple) in `urdf_text` as an XML comment.
+
+    The comment is placed immediately after the opening `<robot ...>` tag.
+    """
+    cx, cy, cz = centroid
+    comment = f"  <!-- morphit:centroid {cx:.6f} {cy:.6f} {cz:.6f} -->"
+    m = re.search(r"<robot\b[^>]*>", urdf_text)
+    if m:
+        return urdf_text[:m.end()] + "\n" + comment + urdf_text[m.end():]
+    return comment + "\n" + urdf_text
+
+
+def extract_centroid_from_urdf(urdf_text: str):
+    """Return the (x, y, z) centroid encoded by `inject_centroid_comment`, or None."""
+    m = _CENTROID_COMMENT_RE.search(urdf_text)
+    return tuple(float(x) for x in m.groups()) if m else None
+
+
 def _safe_color_rgba(hex_color: Optional[str]) -> tuple:
     """Hex string -> RGBA, falling back to the default sphere blue."""
     if not hex_color:
@@ -186,17 +219,115 @@ def healthz():
     return {"ok": True}
 
 
-# Demo mesh shipped with the image so first-time visitors can run MorphIt
-# without uploading their own file.
-EXAMPLE_MESH = WEB_DIR / "examples" / "link0.obj"
+# Registry of bundled example meshes. Add entries here to extend the library;
+# the /api/examples list endpoint and /api/example/{name}[/packed] download
+# endpoints pick these up automatically — no UI changes required.
+#
+# Each entry's `path` must live under web/examples/. If a sibling
+# `<stem>.urdf` exists AND that URDF embeds a morphit:centroid comment
+# (see inject_centroid_comment), the example is also downloadable as a
+# pre-baked packing via /api/example/{name}/packed.
+EXAMPLES_DIR = WEB_DIR / "examples"
+
+EXAMPLE_OBJECTS: Dict[str, Dict[str, Any]] = {
+    "bunny": {
+        "label": "bunny.obj — Stanford Bunny",
+        "path": EXAMPLES_DIR / "bunny.obj",
+        "filename": "bunny.obj",
+        "default": True,
+    },
+    "link0": {
+        "label": "link0.obj — Franka FR3 base link",
+        "path": EXAMPLES_DIR / "link0.obj",
+        "filename": "link0.obj",
+    },
+}
+
+_OBJ_MEDIA_TYPES = {".obj": "model/obj", ".stl": "model/stl", ".ply": "application/octet-stream"}
 
 
-@app.get("/api/example/link0")
-def example_link0():
+def _packed_urdf_path(name: str) -> Path:
+    """Path to the pre-baked URDF for an example, if one is bundled."""
+    return EXAMPLES_DIR / f"{name}.urdf"
+
+
+@app.get("/api/examples")
+def list_examples():
+    """List bundled example meshes with metadata for the UI library picker."""
+    out = []
+    for name, obj in EXAMPLE_OBJECTS.items():
+        if not obj["path"].exists():
+            continue
+        thumb = obj["path"].with_suffix(".png")
+        out.append({
+            "name": name,
+            "label": obj["label"],
+            "filename": obj["filename"],
+            "default": bool(obj.get("default")),
+            "has_packed": _packed_urdf_path(name).exists(),
+            "has_thumbnail": thumb.exists(),
+        })
+    return out
+
+
+@app.get("/api/example/{name}")
+def get_example(name: str):
+    """Download a bundled example mesh by name."""
+    obj = EXAMPLE_OBJECTS.get(name)
+    if obj is None:
+        raise HTTPException(404, f"example {name!r} not found")
+    path: Path = obj["path"]
+    if not path.exists():
+        raise HTTPException(500, f"example file missing on server: {obj['filename']}")
+    media_type = _OBJ_MEDIA_TYPES.get(path.suffix.lower(), "application/octet-stream")
+    return FileResponse(path, media_type=media_type, filename=obj["filename"])
+
+
+@app.get("/api/example/{name}/packed")
+def get_example_packed(name: str):
+    """Serve a pre-baked sphere-decomposition URDF for an example mesh.
+
+    Returns the same shape as POST /api/morph (XML body + centroid
+    header) so the UI can route both flows through one renderer. The
+    centroid is read straight out of the URDF body — so hand-editing
+    or copy-pasting a fresh URDF from the UI into web/examples/ Just
+    Works as long as the URDF carries the morphit:centroid comment.
+    """
+    if name not in EXAMPLE_OBJECTS:
+        raise HTTPException(404, f"example {name!r} not found")
+    urdf_path = _packed_urdf_path(name)
+    if not urdf_path.exists():
+        raise HTTPException(404, f"example {name!r} has no pre-baked packing")
+    urdf_text = urdf_path.read_text()
+    centroid = extract_centroid_from_urdf(urdf_text)
+    if centroid is None:
+        raise HTTPException(
+            500,
+            f"pre-baked URDF for {name!r} is missing its morphit:centroid "
+            "comment; re-run the bundling script or re-paste a URDF from "
+            "the UI (which now embeds the centroid in the file).",
+        )
+    cx, cy, cz = centroid
+    return Response(
+        content=urdf_text,
+        media_type="application/xml",
+        headers={"X-Morphit-Centroid": f"{cx:.6f},{cy:.6f},{cz:.6f}"},
+    )
+
+
+@app.get("/api/example/{name}/thumbnail")
+def get_example_thumbnail(name: str):
+    """Serve a pre-rendered PNG thumbnail for an example mesh."""
+    obj = EXAMPLE_OBJECTS.get(name)
+    if obj is None:
+        raise HTTPException(404, f"example {name!r} not found")
+    thumb = obj["path"].with_suffix(".png")
+    if not thumb.exists():
+        raise HTTPException(404, f"no thumbnail for example {name!r}")
     return FileResponse(
-        EXAMPLE_MESH,
-        media_type="model/obj",
-        filename="link0.obj",
+        thumb,
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 
@@ -284,12 +415,14 @@ async def morph(
         }
         _centers, radii, rel_centers, masses, world_origin = urdf_load_inputs(urdf_cfg)
         urdf_text = write_urdf(urdf_cfg, rel_centers, radii, masses, world_origin)
+        urdf_text = inject_centroid_comment(urdf_text, world_origin)
 
     # Sphere centers in the URDF are emitted relative to `world_origin`
     # (the centroid). The web UI overlays the *original* mesh as a
     # wireframe; to place it in the same frame as the URDF spheres it
-    # needs to translate the mesh by -world_origin. That offset isn't
-    # otherwise recoverable from the URDF, so we pass it via header.
+    # needs to translate the mesh by -world_origin. The centroid is
+    # embedded as a comment in the URDF itself (see
+    # inject_centroid_comment) and mirrored to a header for the UI.
     cx, cy, cz = world_origin
     return Response(
         content=urdf_text,
@@ -384,44 +517,84 @@ def _safe_join(base: Path, rel: str) -> Path:
     return target
 
 
-EXAMPLE_KINOVA_DIR = WEB_DIR / "examples" / "kinova_description"
-EXAMPLE_KINOVA_URDF = "m1n4s200_standalone.urdf"
+# Registry of bundled example robots. Each entry's `folder` must be
+# present under web/examples/. Optionally `spherical_urdf` points at a
+# pre-baked sphere-decomposition URDF (see
+# scripts/bundle_robot_example.py).
+EXAMPLE_ROBOTS: Dict[str, Dict[str, Any]] = {
+    "kinova": {
+        "label": "Kinova m1n4s200",
+        "folder": EXAMPLES_DIR / "kinova_description",
+        "urdf": "m1n4s200_standalone.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "kinova.spherical.urdf",
+        "default": True,
+    },
+}
 
 
-@app.post("/api/robot/example/kinova")
-def robot_example_kinova():
-    """Bootstrap a robot-mode session from the bundled kinova_description.
+@app.get("/api/robot/examples")
+def list_robot_examples():
+    """List bundled example robots for the UI library picker."""
+    out = []
+    for name, r in EXAMPLE_ROBOTS.items():
+        if not r["folder"].exists():
+            continue
+        spherical = r.get("spherical_urdf")
+        out.append({
+            "name": name,
+            "label": r["label"],
+            "urdf": r["urdf"],
+            "default": bool(r.get("default")),
+            "has_spherical": bool(spherical and spherical.exists()),
+        })
+    return out
 
-    Copies web/examples/kinova_description/ into a fresh session work_dir
-    so the rest of the robot pipeline (inspect / pack-link / assemble /
-    file) operates on it identically to a user-uploaded folder. Returns
-    the same shape `/api/robot/inspect` does, so the UI can drop-in
-    replace its inspect call with this for the "use example" path.
+
+@app.post("/api/robot/example/{name}")
+def robot_example_load(name: str):
+    """Bootstrap a robot-mode session from a bundled robot package.
+
+    Copies the registered folder into a fresh session work_dir so the
+    rest of the robot pipeline (inspect / pack-link / assemble / file)
+    operates on it identically to a user-uploaded folder.
     """
-    if not EXAMPLE_KINOVA_DIR.exists():
+    robot = EXAMPLE_ROBOTS.get(name)
+    if robot is None:
+        raise HTTPException(404, f"robot {name!r} not in library")
+    if not robot["folder"].exists():
         raise HTTPException(
             500,
-            "kinova example not bundled; run scripts/bundle_kinova_example.py",
+            f"robot {name!r} not bundled; expected {robot['folder']}",
         )
 
     _gc_robot_sessions()
     session = _new_robot_session()
 
-    # Mirror the upload pattern: drop everything under <work_dir>/<pkg>/...
-    # so package://kinova_description/Y resolves naturally.
-    pkg_root = session.work_dir / "kinova_description"
-    shutil.copytree(EXAMPLE_KINOVA_DIR, pkg_root)
+    pkg_root = session.work_dir / robot["folder"].name
+    shutil.copytree(robot["folder"], pkg_root)
 
     try:
         urdfs = find_urdfs(session.work_dir)
-        urdf_path = select_urdf(urdfs, EXAMPLE_KINOVA_URDF)
+        urdf_path = select_urdf(urdfs, robot["urdf"])
     except ValueError as exc:
-        raise HTTPException(500, f"kinova example malformed: {exc}")
+        raise HTTPException(500, f"robot {name!r} malformed: {exc}")
 
     report = inspect_urdf(session.work_dir, urdf_path)
     session.report = report
 
     return {"session_id": session.session_id, **report.to_dict()}
+
+
+@app.get("/api/robot/example/{name}/spherical")
+def robot_example_spherical(name: str):
+    """Serve a pre-baked sphere-decomposition URDF for a registered robot."""
+    robot = EXAMPLE_ROBOTS.get(name)
+    if robot is None:
+        raise HTTPException(404, f"robot {name!r} not in library")
+    spherical = robot.get("spherical_urdf")
+    if not spherical or not spherical.exists():
+        raise HTTPException(404, f"robot {name!r} has no pre-baked spherical URDF")
+    return FileResponse(spherical, media_type="application/xml")
 
 
 @app.get("/api/robot/file")
