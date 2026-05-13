@@ -180,6 +180,14 @@ class DensityController:
         keep_indices = torch.argsort(values, descending=True)[: n - k]
         surviving_centers = self.model._centers.data[keep_indices].clone()
         surviving_radii = real_radii[keep_indices].detach().clone()
+        # Per-sphere mass — when registered — has to be reordered by the
+        # same `keep_indices` as centers/radii. Without this the survivor
+        # at position i ends up paired with the *original* sphere i's
+        # mass, not its own, so the physics losses compute gradients
+        # against scrambled mass↔center pairings on every DC fire.
+        psm = self.model._log_masses is not None
+        if psm:
+            surviving_masses = self.model.masses[keep_indices].detach().clone()
 
         removed_values = values[torch.argsort(values, descending=False)[:k]]
         print(
@@ -203,6 +211,20 @@ class DensityController:
 
         self.model._centers = nn.Parameter(all_centers)
         self.model._radii = nn.Parameter(_inverse_softplus(all_radii_real))
+        # PSM writeback: new spheres are initialised to the median
+        # surviving mass — adaptive to whatever the optimizer has
+        # learned, and equal to mesh_mass/N before any mass training
+        # has happened (matches morphit.py's init convention).
+        if psm:
+            new_mass_init = float(surviving_masses.median().item())
+            new_masses = torch.full(
+                (len(new_centers),),
+                new_mass_init,
+                device=surviving_masses.device,
+                dtype=surviving_masses.dtype,
+            )
+            all_masses = torch.cat([surviving_masses, new_masses], dim=0)
+            self.model._log_masses = nn.Parameter(_inverse_softplus(all_masses))
         self.model.num_spheres = len(all_radii_real)
 
         # --- Warmup: mini-optimization for the new spheres ---

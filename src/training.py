@@ -53,13 +53,22 @@ class MorphItTrainer:
         self.training_start_time = None
 
     def _create_optimizer(self) -> torch.optim.Optimizer:
-        """Create optimizer with configured learning rates."""
-        return torch.optim.Adam(
-            [
-                {"params": self.model._centers, "lr": self.config.training.center_lr},
-                {"params": self.model._radii, "lr": self.config.training.radius_lr},
-            ]
-        )
+        """Create optimizer with configured learning rates.
+
+        Per-sphere mass parameter is added to the optimizer only when
+        the model has it (config.model.per_sphere_mass=True); otherwise
+        omitted so the default uniform-density behavior is unchanged.
+        """
+        param_groups = [
+            {"params": self.model._centers, "lr": self.config.training.center_lr},
+            {"params": self.model._radii, "lr": self.config.training.radius_lr},
+        ]
+        if getattr(self.model, "_log_masses", None) is not None:
+            param_groups.append({
+                "params": self.model._log_masses,
+                "lr": self.config.training.mass_lr,
+            })
+        return torch.optim.Adam(param_groups)
 
     def _reset_optimizer(self):
         """Reset optimizer after parameter changes."""
@@ -458,6 +467,14 @@ class MorphItTrainer:
             self.model._radii = nn.Parameter(
                 self.model._radii.data[keep_mask].clone()
             )
+            # Sync per-sphere mass parameter when present, otherwise
+            # `model.masses` (shape N) and `model.centers` (shape N')
+            # would disagree on N and break any downstream consumer
+            # that pulls all three (e.g. physics-error eval).
+            if self.model._log_masses is not None:
+                self.model._log_masses = nn.Parameter(
+                    self.model._log_masses.data[keep_mask].clone()
+                )
             self.model.num_spheres = int(keep_mask.sum().item())
             return n_remove
 

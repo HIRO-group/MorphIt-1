@@ -113,10 +113,26 @@ class MorphIt(nn.Module):
         # attenuation by using a higher radius_lr (see TrainingConfig).
         self._radii = nn.Parameter(_inverse_softplus(radii))
         self.num_spheres = len(radii)
+
+        # Per-sphere learnable mass. Only registered as a Parameter when
+        # config.model.per_sphere_mass=True; otherwise left as None and
+        # the `masses` property falls back to density × volume. Init at
+        # mesh_mass / N so the per-sphere sum equals total mesh mass at
+        # iteration 0, matching the uniform-density default.
+        if getattr(self.config.model, "per_sphere_mass", False):
+            init_mass = float(self.mesh_mass) / max(int(self.num_spheres), 1)
+            init_tensor = torch.full(
+                (self.num_spheres,), init_mass,
+                dtype=torch.float32, device=self.device,
+            )
+            self._log_masses = nn.Parameter(_inverse_softplus(init_tensor))
+        else:
+            self._log_masses = None
+
         self._print_initialization_stats(self.radii)
 
     def _voxel_sample_centers(self, num_spheres: int,
-                              safety: float = 1.5,
+                              safety: float = 1.0,
                               max_iters: int = 10) -> torch.Tensor:
         """Place sphere centers at cell centers of a uniform voxel grid.
 
@@ -134,6 +150,13 @@ class MorphIt(nn.Module):
         so the initial estimate is s = (V_mesh / (safety*N))**(1/3).
         The iteration corrects if that estimate is off (thin meshes,
         concavities, etc.).
+
+        safety=1.0 makes the target pool match N exactly. For meshes
+        whose AABB equals the mesh (e.g. a cube) at N = k³, this lands
+        an exact k×k×k grid (no random subselect → clean lattice init).
+        Larger safety values inflate the candidate pool by ~safety× and
+        force ``np.random.choice`` to discard a large fraction, which
+        destroys the grid structure even at perfect-cube N values.
         """
         mesh = self.query_mesh
         lo, hi = mesh.bounds
@@ -145,7 +168,13 @@ class MorphIt(nn.Module):
 
         inside = np.empty((0, 3), dtype=np.float64)
         for _ in range(max_iters):
-            n_axis = np.maximum(1, np.ceil(extent / voxel_size).astype(int))
+            # 1e-9 tolerance on ceil() prevents float-precision creep
+            # (e.g. 0.2/0.05 → 4.0000000000004 → ceil=5 → wrong 5×5×5
+            # grid instead of 4×4×4) which destroys the lattice for
+            # perfect-cube N on axis-aligned meshes.
+            n_axis = np.maximum(
+                1, np.ceil(extent / voxel_size - 1e-9).astype(int)
+            )
             axes = [
                 lo[i] + (np.arange(n_axis[i]) + 0.5) * voxel_size
                 for i in range(3)
@@ -154,7 +183,13 @@ class MorphIt(nn.Module):
                 np.meshgrid(*axes, indexing="ij"), axis=-1
             ).reshape(-1, 3)
 
-            mask = check_mesh_contains(mesh, grid)
+            # trimesh.contains is reliable on axis-aligned grids;
+            # the local check_mesh_contains is a fast ray-cast that
+            # disagrees with itself on grid-aligned points (the
+            # "contains1 != contains2" warning) and misclassifies
+            # 30–50% of valid cube-interior cells. Only the init
+            # uses a regular grid, so the swap is local.
+            mask = np.asarray(mesh.contains(grid), dtype=bool)
             inside = grid[mask]
 
             if len(inside) >= num_spheres:
@@ -308,12 +343,16 @@ class MorphIt(nn.Module):
 
     @property
     def masses(self) -> torch.Tensor:
-        """Per-sphere mass (kg), derived from uniform density × (4/3)π·r³.
+        """Per-sphere mass (kg).
+
+        - If per_sphere_mass=True: learned, softplus-positive parameter.
+        - Else: derived from uniform density × (4/3)π·r³, no parameters.
 
         All physics losses (mass_loss, com_loss, inertia_loss) read from
-        here so the per-sphere mass formulation can be swapped at the
-        model layer without touching the loss code.
+        here so they're indifferent to which mode is active.
         """
+        if self._log_masses is not None:
+            return F.softplus(self._log_masses)
         FOUR_THIRDS_PI = (4.0 / 3.0) * 3.141592653589793
         return self.config.model.density * FOUR_THIRDS_PI * (self.radii ** 3)
 
@@ -333,8 +372,10 @@ class MorphIt(nn.Module):
         results = {
             "centers": self.centers.detach().cpu().numpy().tolist(),
             "radii": self.radii.detach().cpu().numpy().tolist(),
+            "masses": self.masses.detach().cpu().numpy().tolist(),
             "mesh_path": self.mesh_path,
             "num_spheres": self.num_spheres,
+            "per_sphere_mass": bool(self._log_masses is not None),
             "config": self._config_to_dict(),
         }
 

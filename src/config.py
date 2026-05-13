@@ -25,6 +25,13 @@ class ModelConfig:
 
     density: float = 1000.0  # Material density (kg/m³). Used by mass/com/inertia losses.
 
+    # Per-sphere learnable mass. When False (default), model.masses is
+    # derived analytically from radii × uniform density. When True, an
+    # nn.Parameter _log_masses is registered (softplus-positive, like
+    # radii) and the optimizer learns per-sphere masses independently
+    # of radii — useful for objects with non-uniform internal density.
+    per_sphere_mass: bool = False
+
 
 @dataclass
 class TrainingConfig:
@@ -40,6 +47,11 @@ class TrainingConfig:
     # effective step on the real radius is sigmoid(raw_r) * lr.
     center_lr: float = 0.001
     radius_lr: float = 0.002
+    # mass_lr: only used when model.per_sphere_mass=True. Per-sphere
+    # mass is softplus-reparameterized like radii; lr operates in raw
+    # space. Default tuned so per-iter step is meaningful for typical
+    # m ~ M_mesh/N (the init value).
+    mass_lr: float = 0.01
     grad_clip_norm: float = 1.0
 
     # Loss weights - can be overridden by get_config()
@@ -189,6 +201,40 @@ LOSS_WEIGHT_CONFIGS = {
         "flatness_weight": 0.0,
         "hausdorff_weight": 0.0,
         "mesh_containment_weight": 10.0,
+    },
+    # MorphIt-Obj: physics-aware variant — mass/com/inertia losses on
+    # in addition to geometry. Weights match plus-plus's MorphIt-Obj
+    # exactly so cross-library packings are comparable.
+    "MorphIt-Obj": {
+        "coverage_weight": 100.0,
+        "overlap_weight": 0.3,
+        "boundary_weight": 0.0,
+        "surface_weight": 50.0,
+        "containment_weight": 1.0,
+        "sqem_weight": 50.0,
+        "mass_weight": 30.0,
+        "com_weight": 10.0,
+        "inertia_weight": 30.0,
+        "flatness_weight": 0.0,
+        "hausdorff_weight": 10.0,
+        "mesh_containment_weight": 500.0,
+    },
+    # MorphIt-Obj-mass: identical weights to MorphIt-Obj — only the
+    # parameterization changes (per-sphere mass becomes a learnable
+    # parameter). Set model.per_sphere_mass=True alongside this.
+    "MorphIt-Obj-mass": {
+        "coverage_weight": 100.0,
+        "overlap_weight": 0.3,
+        "boundary_weight": 0.0,
+        "surface_weight": 50.0,
+        "containment_weight": 1.0,
+        "sqem_weight": 50.0,
+        "mass_weight": 30.0,
+        "com_weight": 10.0,
+        "inertia_weight": 30.0,
+        "flatness_weight": 0.0,
+        "hausdorff_weight": 10.0,
+        "mesh_containment_weight": 500.0,
     },
 }
 
