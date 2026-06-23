@@ -1,0 +1,236 @@
+{
+    "centers": [
+        [
+            0.12880802154541016,
+            -0.03369267284870148,
+            0.044823117554187775
+        ],
+        [
+            0.10741893202066422,
+            -0.032809410244226456,
+            0.07827407866716385
+        ],
+        [
+            0.041158147156238556,
+            -0.019369766116142273,
+            -0.0003740874817594886
+        ],
+        [
+            0.07061854749917984,
+            -0.021292343735694885,
+            0.050648946315050125
+        ],
+        [
+            -0.008314933627843857,
+            -0.017466172575950623,
+            -0.017871055752038956
+        ],
+        [
+            0.009682899340987206,
+            0.022723346948623657,
+            -0.02238541468977928
+        ],
+        [
+            -0.015725737437605858,
+            0.008875186555087566,
+            -0.01739821396768093
+        ],
+        [
+            0.0942196398973465,
+            -0.014657576568424702,
+            0.021076390519738197
+        ],
+        [
+            0.049284640699625015,
+            -0.004028217867016792,
+            -0.0026921189855784178
+        ],
+        [
+            0.0856490358710289,
+            -0.035610806196928024,
+            0.01721527799963951
+        ],
+        [
+            -0.00034215583582408726,
+            0.0005030283355154097,
+            0.01849067024886608
+        ],
+        [
+            0.02020062506198883,
+            -0.00679163308814168,
+            0.02787676453590393
+        ],
+        [
+            0.029872693121433258,
+            -0.0229912418872118,
+            0.06573142111301422
+        ],
+        [
+            0.06714712828397751,
+            -0.030308077111840248,
+            0.07792999595403671
+        ],
+        [
+            0.13568605482578278,
+            -0.02856079488992691,
+            0.06993322819471359
+        ],
+        [
+            0.13789081573486328,
+            -0.04191390424966812,
+            0.07124394923448563
+        ],
+        [
+            0.042828015983104706,
+            -0.0033731460571289062,
+            0.04007931426167488
+        ],
+        [
+            0.0014165292959660292,
+            -0.011557069607079029,
+            0.038285817950963974
+        ],
+        [
+            0.09861928224563599,
+            -0.032459910959005356,
+            0.04220546409487724
+        ],
+        [
+            0.0538158155977726,
+            -0.009753893129527569,
+            0.05483780428767204
+        ]
+    ],
+    "radii": [
+        0.04957200214266777,
+        0.050209999084472656,
+        0.05134034529328346,
+        0.05492497608065605,
+        0.03856787085533142,
+        0.034502387046813965,
+        0.040312137454748154,
+        0.043825700879096985,
+        0.0465005561709404,
+        0.04253378137946129,
+        0.05344352871179581,
+        0.05485670641064644,
+        0.043136484920978546,
+        0.04485732316970825,
+        0.044901687651872635,
+        0.042980510741472244,
+        0.04440546780824661,
+        0.044713087379932404,
+        0.04236837849020958,
+        0.042919810861349106
+    ],
+    "masses": [
+        0.5102675557136536,
+        0.5302238464355469,
+        0.5668458342552185,
+        0.6940618753433228,
+        0.240306556224823,
+        0.1720426231622696,
+        0.2744075357913971,
+        0.3525942265987396,
+        0.42117545008659363,
+        0.32232242822647095,
+        0.6394019722938538,
+        0.6914771199226379,
+        0.33621945977211,
+        0.37808430194854736,
+        0.37920722365379333,
+        0.33258551359176636,
+        0.36677348613739014,
+        0.37444889545440674,
+        0.31857675313949585,
+        0.3311783969402313
+    ],
+    "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/fetch/meshes/shoulder_pan_link_collision.STL",
+    "num_spheres": 20,
+    "per_sphere_mass": false,
+    "config": {
+        "model": {
+            "num_spheres": 20,
+            "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/fetch/meshes/shoulder_pan_link_collision.STL",
+            "device": "cpu",
+            "initial_radius_variation": 0.1,
+            "num_inside_samples": 5000,
+            "num_surface_samples": 5000,
+            "max_spheres": 25,
+            "density": 1000.0,
+            "per_sphere_mass": false
+        },
+        "training": {
+            "iterations": 200,
+            "verbose_frequency": 50,
+            "logging_enabled": false,
+            "center_lr": 0.002,
+            "radius_lr": 0.005,
+            "mass_lr": 0.01,
+            "grad_clip_norm": 1.0,
+            "coverage_weight": 1500.0,
+            "overlap_weight": 0.3,
+            "boundary_weight": 1.0,
+            "surface_weight": 50.0,
+            "containment_weight": 10.0,
+            "sqem_weight": 3000.0,
+            "mass_weight": 0.0,
+            "com_weight": 0.0,
+            "inertia_weight": 0.0,
+            "flatness_weight": 0.0,
+            "hausdorff_weight": 0.0,
+            "mesh_containment_weight": 10.0,
+            "early_stopping": false,
+            "convergence_patience": 50,
+            "convergence_threshold": 0.001,
+            "density_control_enabled": true,
+            "density_control_min_interval": 160,
+            "density_control_patience": 1,
+            "density_control_grad_threshold": 0.0001,
+            "density_control_warmup_steps": 10,
+            "density_control_cooling_factor": 0.85,
+            "density_control_min_radius_fraction": 0.001
+        },
+        "visualization": {
+            "enabled": false,
+            "off_screen": true,
+            "save_video": false,
+            "video_filename": "sphere_filling.mp4",
+            "render_interval": 5,
+            "sphere_color": "blue",
+            "sphere_opacity": 0.3,
+            "mesh_color": "white",
+            "mesh_line_width": 1.5,
+            "mesh_opacity": 0.8,
+            "show_sample_points": true,
+            "show_surface_points": true,
+            "sample_points_subsample": 100000,
+            "surface_points_subsample": 100000,
+            "sample_point_color": "red",
+            "surface_point_color": "green",
+            "point_size": 5,
+            "camera_position": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "camera_focal_point": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "camera_view_up": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "camera_azimuth": 80,
+            "camera_elevation": 120,
+            "camera_roll": 120,
+            "camera_zoom": 1.5
+        },
+        "results_dir": "/Users/nn/devenv/MorphIt-1/web/examples/fetch.spheres/spheres",
+        "output_filename": "shoulder_pan_link_0.json",
+        "random_seed": 0
+    }
+}

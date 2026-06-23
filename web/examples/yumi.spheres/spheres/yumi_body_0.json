@@ -1,0 +1,173 @@
+{
+    "centers": [
+        [
+            -0.06578315049409866,
+            0.0021470163483172655,
+            0.38500186800956726
+        ],
+        [
+            -0.24831858277320862,
+            -0.0026053248438984156,
+            0.3122897744178772
+        ],
+        [
+            -0.268394410610199,
+            0.11886531114578247,
+            -0.0036510396748781204
+        ],
+        [
+            -0.0949602946639061,
+            -0.014942368492484093,
+            -0.000601096311584115
+        ],
+        [
+            -0.31109556555747986,
+            -0.055970195680856705,
+            0.10299211740493774
+        ],
+        [
+            -0.24975304305553436,
+            -0.013776145875453949,
+            -0.0006011135410517454
+        ],
+        [
+            -0.33145871758461,
+            0.013468910939991474,
+            -0.01498941145837307
+        ],
+        [
+            -0.19033373892307281,
+            -0.04647407680749893,
+            0.28527525067329407
+        ],
+        [
+            -0.1892477571964264,
+            -0.056122686713933945,
+            0.11362049728631973
+        ],
+        [
+            0.06371796876192093,
+            0.1386171281337738,
+            0.030356980860233307
+        ],
+        [
+            0.05987425893545151,
+            -0.1376272290945053,
+            0.016455940902233124
+        ]
+    ],
+    "radii": [
+        0.1398213654756546,
+        0.14354263246059418,
+        0.07630764693021774,
+        0.09843643754720688,
+        0.07016338407993317,
+        0.08849195390939713,
+        0.04864254966378212,
+        0.05924471095204353,
+        0.06997737288475037,
+        0.06171983480453491,
+        0.0609888881444931
+    ],
+    "masses": [
+        11.450098037719727,
+        12.388858795166016,
+        1.8611987829208374,
+        3.995363235473633,
+        1.4468388557434082,
+        2.9026851654052734,
+        0.4821005165576935,
+        0.8710384368896484,
+        1.4353621006011963,
+        0.9848335981369019,
+        0.9502562880516052
+    ],
+    "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/yumi/meshes/coarse/body.stl",
+    "num_spheres": 11,
+    "per_sphere_mass": false,
+    "config": {
+        "model": {
+            "num_spheres": 20,
+            "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/yumi/meshes/coarse/body.stl",
+            "device": "cpu",
+            "initial_radius_variation": 0.1,
+            "num_inside_samples": 5000,
+            "num_surface_samples": 5000,
+            "max_spheres": 25,
+            "density": 1000.0,
+            "per_sphere_mass": false
+        },
+        "training": {
+            "iterations": 200,
+            "verbose_frequency": 50,
+            "logging_enabled": false,
+            "center_lr": 0.002,
+            "radius_lr": 0.005,
+            "mass_lr": 0.01,
+            "grad_clip_norm": 1.0,
+            "coverage_weight": 1500.0,
+            "overlap_weight": 0.3,
+            "boundary_weight": 1.0,
+            "surface_weight": 50.0,
+            "containment_weight": 10.0,
+            "sqem_weight": 3000.0,
+            "mass_weight": 0.0,
+            "com_weight": 0.0,
+            "inertia_weight": 0.0,
+            "flatness_weight": 0.0,
+            "hausdorff_weight": 0.0,
+            "mesh_containment_weight": 10.0,
+            "early_stopping": false,
+            "convergence_patience": 50,
+            "convergence_threshold": 0.001,
+            "density_control_enabled": true,
+            "density_control_min_interval": 160,
+            "density_control_patience": 1,
+            "density_control_grad_threshold": 0.0001,
+            "density_control_warmup_steps": 10,
+            "density_control_cooling_factor": 0.85,
+            "density_control_min_radius_fraction": 0.001
+        },
+        "visualization": {
+            "enabled": false,
+            "off_screen": true,
+            "save_video": false,
+            "video_filename": "sphere_filling.mp4",
+            "render_interval": 5,
+            "sphere_color": "blue",
+            "sphere_opacity": 0.3,
+            "mesh_color": "white",
+            "mesh_line_width": 1.5,
+            "mesh_opacity": 0.8,
+            "show_sample_points": true,
+            "show_surface_points": true,
+            "sample_points_subsample": 100000,
+            "surface_points_subsample": 100000,
+            "sample_point_color": "red",
+            "surface_point_color": "green",
+            "point_size": 5,
+            "camera_position": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "camera_focal_point": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "camera_view_up": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "camera_azimuth": 80,
+            "camera_elevation": 120,
+            "camera_roll": 120,
+            "camera_zoom": 1.5
+        },
+        "results_dir": "/Users/nn/devenv/MorphIt-1/web/examples/yumi.spheres/spheres",
+        "output_filename": "yumi_body_0.json",
+        "random_seed": 0
+    }
+}

@@ -529,6 +529,60 @@ EXAMPLE_ROBOTS: Dict[str, Dict[str, Any]] = {
         "spherical_urdf": EXAMPLES_DIR / "kinova.spherical.urdf",
         "default": True,
     },
+    "panda": {
+        "label": "Franka Emika Panda",
+        "folder": EXAMPLES_DIR / "franka_panda",
+        "urdf": "panda.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "panda.spherical.urdf",
+    },
+    "ur5": {
+        "label": "Universal Robots UR5",
+        "folder": EXAMPLES_DIR / "ur5",
+        "urdf": "ur5_gripper.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "ur5.spherical.urdf",
+    },
+    "kuka_iiwa": {
+        "label": "KUKA LBR iiwa",
+        "folder": EXAMPLES_DIR / "kuka_iiwa",
+        "urdf": "model.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "kuka_iiwa.spherical.urdf",
+    },
+    "yumi": {
+        "label": "ABB YuMi (IRB 14000)",
+        "folder": EXAMPLES_DIR / "yumi",
+        "urdf": "yumi.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "yumi.spherical.urdf",
+    },
+    "spot": {
+        "label": "Boston Dynamics Spot (quadruped)",
+        "folder": EXAMPLES_DIR / "spot",
+        "urdf": "spot.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "spot.spherical.urdf",
+    },
+    "fetch": {
+        "label": "Fetch (mobile manipulator)",
+        "folder": EXAMPLES_DIR / "fetch",
+        "urdf": "fetch.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "fetch.spherical.urdf",
+    },
+    "valkyrie": {
+        "label": "NASA Valkyrie (humanoid)",
+        "folder": EXAMPLES_DIR / "valkyrie",
+        "urdf": "valkyrie_A.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "valkyrie.spherical.urdf",
+    },
+    "fanuc_m20ia": {
+        "label": "Fanuc M-20iA (industrial)",
+        "folder": EXAMPLES_DIR / "fanuc_m20ia",
+        "urdf": "m20ia10l.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "fanuc_m20ia.spherical.urdf",
+    },
+    "abb_irb2400": {
+        "label": "ABB IRB 2400 (industrial)",
+        "folder": EXAMPLES_DIR / "abb_irb2400",
+        "urdf": "irb2400.urdf",
+        "spherical_urdf": EXAMPLES_DIR / "abb_irb2400.spherical.urdf",
+    },
 }
 
 

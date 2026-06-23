@@ -1,0 +1,180 @@
+{
+    "centers": [
+        [
+            0.0015429418999701738,
+            -0.2326131910085678,
+            0.03669974207878113
+        ],
+        [
+            -0.01839076541364193,
+            -0.18932847678661346,
+            0.0022290709894150496
+        ],
+        [
+            0.0033107437193393707,
+            -0.23265884816646576,
+            -0.036694642156362534
+        ],
+        [
+            -0.02137090265750885,
+            -0.09920800477266312,
+            -0.014620732516050339
+        ],
+        [
+            -0.0220111683011055,
+            -0.0962161049246788,
+            0.02410999871790409
+        ],
+        [
+            0.01445274893194437,
+            -0.24652314186096191,
+            0.000734616129193455
+        ],
+        [
+            0.03347930312156677,
+            -0.09404823929071426,
+            -0.00192781793884933
+        ],
+        [
+            7.836338772904128e-05,
+            -0.18948420882225037,
+            0.032835379242897034
+        ],
+        [
+            0.03825561702251434,
+            -0.13196080923080444,
+            0.026882298290729523
+        ],
+        [
+            -0.02525307610630989,
+            -0.13318155705928802,
+            0.015109734609723091
+        ],
+        [
+            -0.0018174020806327462,
+            -0.18992073833942413,
+            -0.03197420388460159
+        ],
+        [
+            0.032178375869989395,
+            -0.13125140964984894,
+            -0.018229689449071884
+        ]
+    ],
+    "radii": [
+        0.030492769554257393,
+        0.045554809272289276,
+        0.0298417080193758,
+        0.047250665724277496,
+        0.040981974452733994,
+        0.028042767196893692,
+        0.0384037122130394,
+        0.038223400712013245,
+        0.030353549867868423,
+        0.040118176490068436,
+        0.03921457752585411,
+        0.03569161146879196
+    ],
+    "masses": [
+        0.11876246333122253,
+        0.39599645137786865,
+        0.11131652444601059,
+        0.44188815355300903,
+        0.2883149981498718,
+        0.0923743024468422,
+        0.23725108802318573,
+        0.2339249700307846,
+        0.1171431913971901,
+        0.2704656720161438,
+        0.25259876251220703,
+        0.1904526650905609
+    ],
+    "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/valkyrie/model/meshes/arms/aj5_right.dae",
+    "num_spheres": 12,
+    "per_sphere_mass": false,
+    "config": {
+        "model": {
+            "num_spheres": 20,
+            "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/valkyrie/model/meshes/arms/aj5_right.dae",
+            "device": "cpu",
+            "initial_radius_variation": 0.1,
+            "num_inside_samples": 5000,
+            "num_surface_samples": 5000,
+            "max_spheres": 25,
+            "density": 1000.0,
+            "per_sphere_mass": false
+        },
+        "training": {
+            "iterations": 200,
+            "verbose_frequency": 50,
+            "logging_enabled": false,
+            "center_lr": 0.002,
+            "radius_lr": 0.005,
+            "mass_lr": 0.01,
+            "grad_clip_norm": 1.0,
+            "coverage_weight": 1500.0,
+            "overlap_weight": 0.3,
+            "boundary_weight": 1.0,
+            "surface_weight": 50.0,
+            "containment_weight": 10.0,
+            "sqem_weight": 3000.0,
+            "mass_weight": 0.0,
+            "com_weight": 0.0,
+            "inertia_weight": 0.0,
+            "flatness_weight": 0.0,
+            "hausdorff_weight": 0.0,
+            "mesh_containment_weight": 10.0,
+            "early_stopping": false,
+            "convergence_patience": 50,
+            "convergence_threshold": 0.001,
+            "density_control_enabled": true,
+            "density_control_min_interval": 160,
+            "density_control_patience": 1,
+            "density_control_grad_threshold": 0.0001,
+            "density_control_warmup_steps": 10,
+            "density_control_cooling_factor": 0.85,
+            "density_control_min_radius_fraction": 0.001
+        },
+        "visualization": {
+            "enabled": false,
+            "off_screen": true,
+            "save_video": false,
+            "video_filename": "sphere_filling.mp4",
+            "render_interval": 5,
+            "sphere_color": "blue",
+            "sphere_opacity": 0.3,
+            "mesh_color": "white",
+            "mesh_line_width": 1.5,
+            "mesh_opacity": 0.8,
+            "show_sample_points": true,
+            "show_surface_points": true,
+            "sample_points_subsample": 100000,
+            "surface_points_subsample": 100000,
+            "sample_point_color": "red",
+            "surface_point_color": "green",
+            "point_size": 5,
+            "camera_position": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "camera_focal_point": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "camera_view_up": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "camera_azimuth": 80,
+            "camera_elevation": 120,
+            "camera_roll": 120,
+            "camera_zoom": 1.5
+        },
+        "results_dir": "/Users/nn/devenv/MorphIt-1/web/examples/valkyrie.spheres/spheres",
+        "output_filename": "rightForearmLink_0.json",
+        "random_seed": 0
+    }
+}

@@ -1,0 +1,208 @@
+{
+    "centers": [
+        [
+            0.020723793655633926,
+            0.06274067610502243,
+            0.004873462487012148
+        ],
+        [
+            -0.0056755137629806995,
+            0.06162385269999504,
+            -0.02263767272233963
+        ],
+        [
+            0.020706767216324806,
+            0.05886167287826538,
+            -0.009456158615648746
+        ],
+        [
+            -0.021996213123202324,
+            0.06066151335835457,
+            -0.009626083076000214
+        ],
+        [
+            -0.018446452915668488,
+            0.07013388723134995,
+            0.01782267540693283
+        ],
+        [
+            -0.023387769237160683,
+            0.06892592459917068,
+            0.0022110615391284227
+        ],
+        [
+            -0.024883482605218887,
+            0.05826455354690552,
+            0.008736127987504005
+        ],
+        [
+            0.015935922041535378,
+            0.058785468339920044,
+            0.018891552463173866
+        ],
+        [
+            0.013895438052713871,
+            0.07025127112865448,
+            0.021447639912366867
+        ],
+        [
+            -0.016430875286459923,
+            0.058060888200998306,
+            0.020830871537327766
+        ],
+        [
+            0.008940964005887508,
+            0.06946997344493866,
+            -0.02324453368782997
+        ],
+        [
+            -0.012325468473136425,
+            0.0703217089176178,
+            -0.020208194851875305
+        ],
+        [
+            -0.0009639615891501307,
+            0.0658455342054367,
+            0.023851005360484123
+        ],
+        [
+            -0.022626470774412155,
+            0.0681377574801445,
+            -0.009983276948332787
+        ],
+        [
+            0.021919799968600273,
+            0.06972357630729675,
+            -0.012246544472873211
+        ],
+        [
+            0.013361909426748753,
+            0.05909617245197296,
+            -0.02387157268822193
+        ]
+    ],
+    "radii": [
+        0.019790593534708023,
+        0.01860114559531212,
+        0.017278434708714485,
+        0.017655612900853157,
+        0.012852594256401062,
+        0.01476367935538292,
+        0.015499397180974483,
+        0.015330910682678223,
+        0.013375241309404373,
+        0.013966345228254795,
+        0.013934795744717121,
+        0.014296626672148705,
+        0.016191450878977776,
+        0.014420016668736935,
+        0.013609317131340504,
+        0.014216580428183079
+    ],
+    "masses": [
+        0.03246871009469032,
+        0.026959240436553955,
+        0.02160736359655857,
+        0.02305350825190544,
+        0.008893259800970554,
+        0.01347945723682642,
+        0.015596711076796055,
+        0.015093586407601833,
+        0.010022901929914951,
+        0.011411347426474094,
+        0.011334188282489777,
+        0.012240222655236721,
+        0.017780577763915062,
+        0.012559891678392887,
+        0.010558388195931911,
+        0.012035774067044258
+    ],
+    "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/ur5/meshes/ur5/collision/wrist3.stl",
+    "num_spheres": 16,
+    "per_sphere_mass": false,
+    "config": {
+        "model": {
+            "num_spheres": 20,
+            "mesh_path": "/Users/nn/devenv/MorphIt-1/web/examples/ur5/meshes/ur5/collision/wrist3.stl",
+            "device": "cpu",
+            "initial_radius_variation": 0.1,
+            "num_inside_samples": 5000,
+            "num_surface_samples": 5000,
+            "max_spheres": 25,
+            "density": 1000.0,
+            "per_sphere_mass": false
+        },
+        "training": {
+            "iterations": 200,
+            "verbose_frequency": 50,
+            "logging_enabled": false,
+            "center_lr": 0.002,
+            "radius_lr": 0.005,
+            "mass_lr": 0.01,
+            "grad_clip_norm": 1.0,
+            "coverage_weight": 1500.0,
+            "overlap_weight": 0.3,
+            "boundary_weight": 1.0,
+            "surface_weight": 50.0,
+            "containment_weight": 10.0,
+            "sqem_weight": 3000.0,
+            "mass_weight": 0.0,
+            "com_weight": 0.0,
+            "inertia_weight": 0.0,
+            "flatness_weight": 0.0,
+            "hausdorff_weight": 0.0,
+            "mesh_containment_weight": 10.0,
+            "early_stopping": false,
+            "convergence_patience": 50,
+            "convergence_threshold": 0.001,
+            "density_control_enabled": true,
+            "density_control_min_interval": 160,
+            "density_control_patience": 1,
+            "density_control_grad_threshold": 0.0001,
+            "density_control_warmup_steps": 10,
+            "density_control_cooling_factor": 0.85,
+            "density_control_min_radius_fraction": 0.001
+        },
+        "visualization": {
+            "enabled": false,
+            "off_screen": true,
+            "save_video": false,
+            "video_filename": "sphere_filling.mp4",
+            "render_interval": 5,
+            "sphere_color": "blue",
+            "sphere_opacity": 0.3,
+            "mesh_color": "white",
+            "mesh_line_width": 1.5,
+            "mesh_opacity": 0.8,
+            "show_sample_points": true,
+            "show_surface_points": true,
+            "sample_points_subsample": 100000,
+            "surface_points_subsample": 100000,
+            "sample_point_color": "red",
+            "surface_point_color": "green",
+            "point_size": 5,
+            "camera_position": [
+                1.0,
+                1.0,
+                1.0
+            ],
+            "camera_focal_point": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "camera_view_up": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "camera_azimuth": 80,
+            "camera_elevation": 120,
+            "camera_roll": 120,
+            "camera_zoom": 1.5
+        },
+        "results_dir": "/Users/nn/devenv/MorphIt-1/web/examples/ur5.spheres/spheres",
+        "output_filename": "wrist_3_link_0.json",
+        "random_seed": 0
+    }
+}

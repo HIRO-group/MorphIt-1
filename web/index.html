@@ -69,7 +69,7 @@
   }
 
   .wrap {
-    max-width: 760px;
+    max-width: 1100px;
     margin: 0 auto;
     padding: clamp(2rem, 5vw, 4rem) 1.25rem 5rem;
     position: relative;
@@ -988,7 +988,7 @@
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 </style>
 </head>
-<body data-mode="object">
+<body data-mode="robot">
 
 <div class="wrap">
   <header>
@@ -998,8 +998,8 @@
 
   <form id="f" class="card" novalidate>
     <div class="mode-tabs" role="tablist" aria-label="Mode">
-      <button id="mode-object" type="button" class="mode-tab active" role="tab" aria-selected="true">Object</button>
-      <button id="mode-robot" type="button" class="mode-tab" role="tab" aria-selected="false">Robot</button>
+      <button id="mode-object" type="button" class="mode-tab" role="tab" aria-selected="false">Object</button>
+      <button id="mode-robot" type="button" class="mode-tab active" role="tab" aria-selected="true">Robot</button>
     </div>
 
     <div class="grid">
@@ -1381,9 +1381,11 @@ function renderRobotTile(item) {
 let currentRobotName = null;
 
 async function loadRobotByName(name) {
-  // Prep robot-mode state and show the inspection panel.
+  // Prep robot-mode state and show the inspection panel. Start it
+  // collapsed — the report is still one click away via the summary,
+  // but the default view leads with the packed result, not the report.
   inspectionDetails.hidden = false;
-  inspectionDetails.open = true;
+  inspectionDetails.open = false;
   inspectionEl.innerHTML = `Inspecting…`;
   urdfPickerWrap.hidden = true;
   robotFolderFiles = [];        // not a user upload
@@ -1507,19 +1509,28 @@ async function loadExampleByName(name) {
   renderUrdf(urdfText, { filename: `${baseName}.urdf` });
 }
 
-// Initial bunny preload — same auto-load behavior we had with the
-// dropdown. Picks whichever entry the server flags as default;
-// falls back to the first if none is flagged.
-fetch('/api/examples')
-  .then(r => r.json())
-  .then(async list => {
+// Object-library preload. Picks whichever entry the server flags as
+// default (falls back to the first). Lazy + guarded: it runs on page
+// load only if object is the default mode, otherwise on the first
+// Object tab click — so it never competes with the robot preload for
+// the shared viewer.
+let objectPreloadAttempted = false;
+async function attemptObjectPreload() {
+  if (objectPreloadAttempted) return;
+  objectPreloadAttempted = true;
+  try {
+    const r = await fetch('/api/examples');
+    if (!r.ok) return;
+    const list = await r.json();
     if (!Array.isArray(list) || list.length === 0) return;
     const def = list.find(e => e.default) ?? list[0];
     currentObjectName = def.name;
-    try { await loadExampleByName(def.name); }
-    catch (err) { console.warn('[example] default load failed:', err); }
-  })
-  .catch(err => console.warn('[example] library fetch failed:', err));
+    await loadExampleByName(def.name);
+  } catch (err) {
+    console.warn('[example] default load failed:', err);
+    objectPreloadAttempted = false;  // allow a retry on the next Object tab click
+  }
+}
 
 let lastBlobUrl = null;
 let lastFilename = 'morphit.urdf';
@@ -1557,7 +1568,10 @@ function setMode(mode) {
   status.classList.remove('err', 'ok');
 }
 
-modeObjectBtn.addEventListener('click', () => setMode('object'));
+modeObjectBtn.addEventListener('click', () => {
+  setMode('object');
+  attemptObjectPreload();
+});
 modeRobotBtn.addEventListener('click', () => {
   setMode('robot');
   attemptRobotPreload();
@@ -1581,6 +1595,16 @@ async function attemptRobotPreload() {
     robotPreloadAttempted = false;
   }
 }
+
+// Kick off the preload for whichever mode the page opens in. Placed
+// after both attempt*Preload functions and their `let` guard flags are
+// initialized — calling earlier would hit the flags' temporal dead
+// zone (ReferenceError) and silently swallow the load. Robot is the
+// default (see <body data-mode="robot">), so the bundled robot shows up
+// packed with no clicks; object mode preloads lazily on the first
+// Object tab click.
+if (currentMode() === 'robot') attemptRobotPreload();
+else attemptObjectPreload();
 
 function resetOutputs() {
   outWrap.hidden = true;
@@ -1627,10 +1651,14 @@ function buildAnimSpecs(movable) {
 
     let center, amp;
     if (joint.jointType === 'prismatic') {
-      // prismatic: center mid-range, amp 40% of range. Scales with units
-      // so a 4cm finger doesn't wiggle 30 radians.
-      center = (lower + upper) / 2;
-      amp = (upper - lower) * 0.4;
+      // prismatic: wiggle around the rest pose (0, clamped into range)
+      // rather than mid-range, and cap the travel at 5 cm. A mobile-base
+      // or gantry DOF can declare a range of hundreds of metres; without
+      // these caps the sine wiggle flings the whole robot out of frame
+      // (e.g. Fetch's planar base_joint2). Small lifts/grippers still get
+      // a visible few-cm motion.
+      center = Math.min(Math.max(0, lower), upper);
+      amp = Math.min((upper - lower) * 0.4, 0.05);
     } else {
       // revolute/continuous: 40% of range, capped at 0.6 rad (~34°) so
       // wide-range arm joints don't swing wildly while narrow-range
@@ -1871,10 +1899,23 @@ function fitCameraToScene() {
   if (bbox.isEmpty()) return;
 
   const center = bbox.getCenter(new THREE.Vector3());
-  const sizeDiag = bbox.getSize(new THREE.Vector3()).length();
-  // 1.1x the bbox diagonal places the camera tight to the geometry but
-  // still leaves a small margin for shadows/highlights.
-  const distance = sizeDiag * 1.1;
+  // Fit the geometry's bounding *sphere* (radius = half the bbox
+  // diagonal) inside the view frustum. The sphere makes the fit
+  // orientation-independent — whichever way we look at the box, the
+  // whole thing stays on screen.
+  //
+  // A sphere of radius r fits a symmetric perspective frustum of
+  // half-angle θ when the camera sits at distance d = r / sin(θ). We
+  // take the *tighter* of the vertical and horizontal FOVs so a wide
+  // pane (large aspect ⇒ small vertical FOV) can't crop the top/bottom.
+  // This is the failure the old fixed 1.1×diagonal heuristic hit: it
+  // ignored FOV/aspect and clipped tall meshes once the panes widened.
+  const radius = bbox.getSize(new THREE.Vector3()).length() / 2;
+  const vFov = viewer.camera.fov * Math.PI / 180;          // vertical FOV (rad)
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * viewer.camera.aspect);
+  const fitFov = Math.min(vFov, hFov);                     // constraining axis
+  const margin = 1.15;                                     // ~15% breathing room
+  const distance = (radius / Math.sin(fitFov / 2)) * margin;
   const dir = new THREE.Vector3(1, 1, 0.6).normalize().multiplyScalar(distance);
 
   viewer.camera.position.copy(center).add(dir);
@@ -1930,6 +1971,16 @@ viewer.loadMeshFunc = (path, manager, done) => done(null);
 viewerOriginal.setAttribute('parse-visual', 'false');
 viewerOriginal.setAttribute('parse-collision', 'true');
 viewerOriginal.setAttribute('show-collision', 'true');
+
+// urdf-viewer's built-in collision material is very see-through
+// (MeshPhongMaterial at opacity 0.35), which makes the original collision
+// geometry read as a faint ghost next to the solid sphere pane. Bump it so
+// the collision shapes are clearly visible. The material is shared and
+// re-applied to every collider on each visibility update, so setting it
+// once here sticks. Guarded in case the element isn't upgraded yet.
+if (viewerOriginal._collisionMaterial) {
+  viewerOriginal._collisionMaterial.opacity = 0.85;
+}
 
 // urdf-loader strips the `package://` scheme before handing us the URL
 // (when its `packages` setting is empty, which is our case — we own
@@ -2003,6 +2054,14 @@ function _bindCameraSync(master, slave) {
   }
   const handler = () => {
     if (syncing || !slave.camera || !slave.controls) return;
+    // Only sync between panes that are actually laid out. In object mode
+    // the original-collision viewer is display:none → 0×0 with a NaN
+    // camera aspect; feeding its OrbitControls (and copying the result
+    // back into the master every frame) pitches the master camera off
+    // its target, so the framed object renders low and clipped. Skip if
+    // either side has no size.
+    if (!master.clientWidth || !master.clientHeight) return;
+    if (!slave.clientWidth || !slave.clientHeight) return;
     syncing = true;
     slave.camera.position.copy(master.camera.position);
     slave.controls.target.copy(master.controls.target);
