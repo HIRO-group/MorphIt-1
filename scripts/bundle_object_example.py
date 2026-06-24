@@ -40,6 +40,25 @@ from main import inject_centroid_comment  # noqa: E402
 # entries in EXAMPLE_OBJECTS in web/api/main.py (the API's registry).
 SOURCES: dict[str, Path] = {
     "bunny": REPO_ROOT / "mesh_models" / "objects" / "bunny.obj",
+    # Google Scanned Objects manipulands (geometry-only .obj, in metres).
+    "teapot": REPO_ROOT / "mesh_models" / "objects" / "teapot.obj",
+    "dog_bowl": REPO_ROOT / "mesh_models" / "objects" / "dog_bowl.obj",
+    "boot": REPO_ROOT / "mesh_models" / "objects" / "boot.obj",
+    "mug": REPO_ROOT / "mesh_models" / "objects" / "mug.obj",
+    "bowl": REPO_ROOT / "mesh_models" / "objects" / "bowl.obj",
+    "panda_toy": REPO_ROOT / "mesh_models" / "objects" / "panda_toy.obj",
+    "planter": REPO_ROOT / "mesh_models" / "objects" / "planter.obj",
+    "foobler": REPO_ROOT / "mesh_models" / "objects" / "foobler.obj",
+    "frother": REPO_ROOT / "mesh_models" / "objects" / "frother.obj",
+    "cooker": REPO_ROOT / "mesh_models" / "objects" / "cooker.obj",
+    "rhino": REPO_ROOT / "mesh_models" / "objects" / "rhino.obj",
+    "lion": REPO_ROOT / "mesh_models" / "objects" / "lion.obj",
+    "school_bus": REPO_ROOT / "mesh_models" / "objects" / "school_bus.obj",
+    "speaker": REPO_ROOT / "mesh_models" / "objects" / "speaker.obj",
+    "toaster": REPO_ROOT / "mesh_models" / "objects" / "toaster.obj",
+    "nesquik": REPO_ROOT / "mesh_models" / "objects" / "nesquik.obj",
+    "coffee_jar": REPO_ROOT / "mesh_models" / "objects" / "coffee_jar.obj",
+    "pitcher": REPO_ROOT / "mesh_models" / "objects" / "pitcher.obj",
     # Add a new entry here when introducing a new pre-baked object.
 }
 

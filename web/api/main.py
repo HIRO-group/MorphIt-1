@@ -241,6 +241,96 @@ EXAMPLE_OBJECTS: Dict[str, Dict[str, Any]] = {
         "path": EXAMPLES_DIR / "link0.obj",
         "filename": "link0.obj",
     },
+    "teapot": {
+        "label": "teapot.obj — Porcelain teapot",
+        "path": EXAMPLES_DIR / "teapot.obj",
+        "filename": "teapot.obj",
+    },
+    "dog_bowl": {
+        "label": "dog_bowl.obj — Ceramic dog bowl",
+        "path": EXAMPLES_DIR / "dog_bowl.obj",
+        "filename": "dog_bowl.obj",
+    },
+    "boot": {
+        "label": "boot.obj — Suede ankle boot",
+        "path": EXAMPLES_DIR / "boot.obj",
+        "filename": "boot.obj",
+    },
+    "mug": {
+        "label": "mug.obj — Coffee mug",
+        "path": EXAMPLES_DIR / "mug.obj",
+        "filename": "mug.obj",
+    },
+    "bowl": {
+        "label": "bowl.obj — Ceramic bowl",
+        "path": EXAMPLES_DIR / "bowl.obj",
+        "filename": "bowl.obj",
+    },
+    "panda_toy": {
+        "label": "panda_toy.obj — Panda figurine",
+        "path": EXAMPLES_DIR / "panda_toy.obj",
+        "filename": "panda_toy.obj",
+    },
+    "planter": {
+        "label": "planter.obj — Plant pot",
+        "path": EXAMPLES_DIR / "planter.obj",
+        "filename": "planter.obj",
+    },
+    "foobler": {
+        "label": "foobler.obj — Treat-dispenser ball",
+        "path": EXAMPLES_DIR / "foobler.obj",
+        "filename": "foobler.obj",
+    },
+    "frother": {
+        "label": "frother.obj — Milk frother",
+        "path": EXAMPLES_DIR / "frother.obj",
+        "filename": "frother.obj",
+    },
+    "cooker": {
+        "label": "cooker.obj — Pressure cooker",
+        "path": EXAMPLES_DIR / "cooker.obj",
+        "filename": "cooker.obj",
+    },
+    "rhino": {
+        "label": "rhino.obj — Rhino figurine",
+        "path": EXAMPLES_DIR / "rhino.obj",
+        "filename": "rhino.obj",
+    },
+    "lion": {
+        "label": "lion.obj — Lion figurine",
+        "path": EXAMPLES_DIR / "lion.obj",
+        "filename": "lion.obj",
+    },
+    "school_bus": {
+        "label": "school_bus.obj — Toy school bus",
+        "path": EXAMPLES_DIR / "school_bus.obj",
+        "filename": "school_bus.obj",
+    },
+    "speaker": {
+        "label": "speaker.obj — Portable speaker",
+        "path": EXAMPLES_DIR / "speaker.obj",
+        "filename": "speaker.obj",
+    },
+    "toaster": {
+        "label": "toaster.obj — 2-slice toaster",
+        "path": EXAMPLES_DIR / "toaster.obj",
+        "filename": "toaster.obj",
+    },
+    "nesquik": {
+        "label": "nesquik.obj — Nesquik canister",
+        "path": EXAMPLES_DIR / "nesquik.obj",
+        "filename": "nesquik.obj",
+    },
+    "coffee_jar": {
+        "label": "coffee_jar.obj — Coffee jar",
+        "path": EXAMPLES_DIR / "coffee_jar.obj",
+        "filename": "coffee_jar.obj",
+    },
+    "pitcher": {
+        "label": "pitcher.obj — Porcelain pitcher",
+        "path": EXAMPLES_DIR / "pitcher.obj",
+        "filename": "pitcher.obj",
+    },
 }
 
 _OBJ_MEDIA_TYPES = {".obj": "model/obj", ".stl": "model/stl", ".ply": "application/octet-stream"}
